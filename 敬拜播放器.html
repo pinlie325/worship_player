@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>敬拜播放器</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;500;700&family=Noto+Sans+TC:wght@300;400;500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0a0a12; --surface: #12121e; --surface2: #1a1a2e;
+    --border: rgba(255,255,255,0.08); --accent: #7c6fe0; --accent2: #a89ee0;
+    --text: #e8e4f8; --text-muted: #7a7598; --text-dim: #4a4668;
+  }
+  html, body { height: 100%; background: var(--bg); color: var(--text); font-family: 'Noto Sans TC', sans-serif; }
+  body { display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+  .main { flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+
+  /* LYRICS PANEL */
+  .lyrics-panel { flex: 0 0 auto; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); min-height: 0; }
+  .panel { flex: 1 1 auto; overflow: hidden; display: none; flex-direction: column; min-height: 0; }
+  .panel.active { display: flex; }
+
+  /* SLIDE VIEW */
+  .slide-view { flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; min-height: 0; position: relative; }
+  .church-name { position: absolute; bottom: 16px; right: 24px; font-size: clamp(16px, 2.2vw, 28px); color: rgba(255,255,255,0.75); font-family: 'Noto Serif TC', serif; font-weight: 500; letter-spacing: 0.08em; pointer-events: none; }
+  .song-title-display { position: absolute; top: 14px; right: 20px; font-size: clamp(13px, 1.6vw, 20px); color: rgba(255,255,255,0.5); font-family: 'Noto Serif TC', serif; font-weight: 400; letter-spacing: 0.06em; pointer-events: none; }
+  .slide-label { position: absolute; top: 10px; left: 18px; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.2); pointer-events: none; }
+  .slide-stage { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 56px; gap: 16px; min-height: 0; }
+  .slide-line { font-family: 'Noto Serif TC', serif; font-size: clamp(44px, 9vw, 100px); font-weight: 500; line-height: 1.4; color: var(--text); text-align: center; width: 100%; }
+  .slide-line.preview { font-size: clamp(28px, 5vw, 60px); color: var(--text-dim); font-weight: 400; }
+  .slide-line.empty { opacity: 0; pointer-events: none; }
+  .slide-divider { width: 40px; height: 1px; background: rgba(255,255,255,0.1); flex-shrink: 0; margin: 4px 0; }
+  .bg-btn { padding: 4px 10px; font-size: 11px; color: var(--text-dim); cursor: pointer; border-radius: 6px; border: 1px solid var(--border); transition: all 0.2s; user-select: none; white-space: nowrap; font-family: 'Noto Sans TC', sans-serif; background: transparent; }
+  .bg-btn.active { color: var(--accent2); border-color: var(--accent); background: rgba(124,111,224,0.1); }
+  .bg-btn:hover:not(.active) { color: var(--text-muted); border-color: rgba(255,255,255,0.15); }
+
+  /* BG canvas for particles */
+  #particle-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+
+  /* bg image */
+  .slide-view.has-image { background-size: cover; background-position: center; }
+  .slide-view.has-image .slide-stage { background: rgba(0,0,0,0.45); }
+
+  /* EDITOR */
+  .editor-wrap { flex: 1 1 auto; display: flex; flex-direction: column; padding: 14px 16px; gap: 10px; overflow: hidden; min-height: 0; }
+  .editor-hint { font-size: 11px; color: var(--text-dim); line-height: 1.7; }
+  .editor-hint code { background: var(--surface2); padding: 1px 4px; border-radius: 4px; color: var(--accent2); font-size: 10px; }
+  #lyrics-editor { flex: 1 1 auto; background: var(--bg); border: 1px solid var(--border); border-radius: 7px; color: var(--text); font-family: 'Noto Sans TC', sans-serif; font-size: 15px; line-height: 2; padding: 12px 14px; resize: none; outline: none; transition: border-color 0.2s; min-height: 0; }
+  #lyrics-editor:focus { border-color: var(--accent); }
+  #lyrics-editor::placeholder { color: var(--text-dim); }
+  .editor-actions { display: flex; gap: 8px; justify-content: flex-end; flex-shrink: 0; }
+  .btn-apply { padding: 8px 20px; background: var(--accent); border: none; border-radius: 7px; color: #fff; font-size: 13px; font-family: 'Noto Sans TC', sans-serif; cursor: pointer; transition: opacity 0.2s; }
+  .btn-apply:hover { opacity: 0.85; }
+  .btn-clear { padding: 8px 14px; background: transparent; border: 1px solid var(--border); border-radius: 7px; color: var(--text-muted); font-size: 13px; font-family: 'Noto Sans TC', sans-serif; cursor: pointer; }
+  .btn-clear:hover { border-color: var(--text-dim); }
+
+  /* RESIZER */
+  .resizer { flex: 0 0 7px; background: var(--surface2); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); cursor: row-resize; display: flex; align-items: center; justify-content: center; user-select: none; transition: background 0.15s; z-index: 10; }
+  .resizer:hover, .resizer.dragging { background: var(--accent); }
+  .resizer-dots { display: flex; gap: 4px; }
+  .resizer-dots span { width: 24px; height: 2px; background: rgba(255,255,255,0.2); border-radius: 2px; }
+  .resizer:hover .resizer-dots span, .resizer.dragging .resizer-dots span { background: rgba(255,255,255,0.5); }
+
+  /* VIDEO PANEL */
+  .video-panel { flex: 1 1 auto; display: flex; flex-direction: column; background: #000; overflow: hidden; min-height: 0; }
+  .video-wrap { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; background: #000; overflow: hidden; min-height: 0; position: relative; }
+  #player { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; }
+  #yt-frame { width: 100%; height: 100%; display: none; border: none; }
+  .no-video { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--text-dim); width: 100%; height: 100%; }
+  .no-video svg { width: 36px; height: 36px; opacity: 0.3; }
+  .no-video p { font-size: 13px; }
+
+  /* BOTTOM BAR */
+  .bottom-bar { flex: 0 0 auto; display: flex; flex-direction: column; background: var(--surface); border-top: 1px solid var(--border); }
+
+  /* source row */
+  .source-row { display: flex; align-items: center; gap: 8px; padding: 7px 14px; border-bottom: 1px solid var(--border); }
+  .src-btn {
+    display: flex; align-items: center; gap: 5px; padding: 4px 10px;
+    border: 1px solid var(--border); border-radius: 6px; background: transparent;
+    color: var(--text-dim); font-size: 11px; font-family: 'Noto Sans TC', sans-serif;
+    cursor: pointer; transition: all 0.2s; white-space: nowrap;
+  }
+  .src-btn.active { border-color: var(--accent); color: var(--accent2); background: rgba(124,111,224,0.1); }
+  .src-btn svg { width: 12px; height: 12px; }
+
+  .yt-input-wrap { flex: 1; display: flex; gap: 6px; align-items: center; }
+  #yt-input {
+    flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-size: 12px; font-family: 'Noto Sans TC', sans-serif;
+    padding: 5px 10px; outline: none; transition: border-color 0.2s;
+  }
+  #yt-input:focus { border-color: var(--accent); }
+  #yt-input::placeholder { color: var(--text-dim); }
+  .yt-load-btn { padding: 5px 12px; background: #FF0000; border: none; border-radius: 6px; color: #fff; font-size: 12px; font-family: 'Noto Sans TC', sans-serif; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
+  .yt-load-btn:hover { opacity: 0.85; }
+
+  .file-btn { display: flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 12px; font-family: 'Noto Sans TC', sans-serif; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .file-btn:hover { border-color: var(--accent); color: var(--accent2); }
+  .file-btn svg { width: 13px; height: 13px; }
+  #file-input { display: none; }
+  .filename { font-size: 11px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; }
+
+  /* control row */
+  .control-row { display: flex; align-items: center; gap: 10px; padding: 8px 14px; }
+  .app-title { font-family: 'Noto Serif TC', serif; font-size: 13px; font-weight: 700; color: var(--accent2); white-space: nowrap; }
+  .bar-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; margin: 0 2px; }
+
+  .btab { padding: 5px 12px; font-size: 12px; color: var(--text-dim); cursor: pointer; border-radius: 6px; border: 1px solid transparent; transition: all 0.2s; user-select: none; white-space: nowrap; font-family: 'Noto Sans TC', sans-serif; background: transparent; }
+  .btab.active { color: var(--accent2); border-color: var(--accent); background: rgba(124,111,224,0.1); }
+  .btab:hover:not(.active) { color: var(--text-muted); border-color: var(--border); }
+
+  .spacer { flex: 1; }
+
+  /* play btn */
+  .play-btn { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex-shrink: 0; background: var(--accent); border: none; border-radius: 50%; color: #fff; cursor: pointer; transition: all 0.18s; }
+  .play-btn:hover { opacity: 0.85; transform: scale(1.05); }
+  .play-btn:active { transform: scale(0.96); }
+  .play-btn:disabled { opacity: 0.3; cursor: default; transform: none; }
+  .play-btn svg { width: 15px; height: 15px; }
+
+  /* progress */
+  .progress-wrap { flex: 1; display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .time-label { font-size: 11px; color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .progress-track { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; cursor: pointer; position: relative; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; pointer-events: none; }
+  .progress-track:hover .progress-fill { background: var(--accent2); }
+
+  /* nav */
+  .nav-btn { display: flex; align-items: center; gap: 6px; padding: 7px 18px; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-muted); font-size: 13px; font-family: 'Noto Sans TC', sans-serif; cursor: pointer; transition: all 0.18s; user-select: none; white-space: nowrap; }
+  .nav-btn:hover:not(:disabled) { border-color: var(--accent); color: var(--accent2); background: rgba(124,111,224,0.08); }
+  .nav-btn:active:not(:disabled) { transform: scale(0.97); }
+  .nav-btn:disabled { opacity: 0.22; cursor: default; }
+  .nav-btn svg { width: 15px; height: 15px; }
+  .slide-counter { font-size: 12px; color: var(--text-dim); min-width: 52px; text-align: center; white-space: nowrap; }
+
+  /* yt mode — hide local controls */
+  body.yt-mode .local-only { display: none !important; }
+  body.local-mode .yt-only { display: none !important; }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 4px; }
+</style>
+</head>
+<body class="local-mode">
+
+<div class="main" id="main">
+
+  <!-- LYRICS -->
+  <div class="lyrics-panel" id="lyrics-panel">
+    <div class="panel active" id="panel-view">
+      <div class="slide-empty" id="slide-empty">
+        <span style="font-size:32px;opacity:0.2">♪</span>
+        <p>請在「編輯歌詞」輸入並套用歌詞</p>
+      </div>
+      <div class="slide-view" id="slide-view" style="display:none;">
+        <canvas id="particle-canvas"></canvas>
+        <div class="slide-label" id="slide-label"></div>
+        <div class="song-title-display" id="song-title-display"></div>
+        <div class="slide-stage">
+          <div class="slide-line" id="line1"></div>
+          <div class="slide-line" id="line2"></div>
+          <div class="slide-divider"></div>
+          <div class="slide-line preview" id="line3"></div>
+          <div class="slide-line preview" id="line4"></div>
+        </div>
+        <div class="church-name" id="church-name"></div>
+      </div>
+    </div>
+    <div class="panel" id="panel-edit">
+      <div class="editor-wrap">
+        <div class="editor-hint">每行一句歌詞，每次顯示兩行。用 <code>[Verse]</code>、<code>[Chorus]</code>、<code>[Bridge]</code> 標記段落（選填）。</div>
+        <textarea id="lyrics-editor" placeholder="[Verse]
+主啊 祢是我心所渴慕
+我的靈渴想切慕祢主
+在這乾旱疲乏 無水之地
+我等候 切切尋求祢
+
+[Chorus]
+我在聖所曾如此瞻仰祢
+為要見祢能力榮耀 喔耶穌
+因祢豐盛慈愛 比生命寶貴
+我的嘴唇要不停讚美"></textarea>
+        <div class="editor-actions">
+          <button class="btn-clear" id="btn-clear">清除</button>
+          <button class="btn-apply" id="btn-apply">套用歌詞 →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESIZER -->
+  <div class="resizer" id="resizer">
+    <div class="resizer-dots"><span></span><span></span><span></span></div>
+  </div>
+
+  <!-- VIDEO -->
+  <div class="video-panel">
+    <div class="video-wrap">
+      <div class="no-video" id="no-video">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l5 3-5 3V9z"/></svg>
+        <p>請選擇影片檔案</p>
+      </div>
+      <video id="player" style="display:none;"></video>
+      <iframe id="yt-frame" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+    </div>
+  </div>
+
+  <!-- HELP MODAL -->
+  <div id="help-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 32px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto;position:relative;">
+      <button onclick="document.getElementById('help-modal').style.display='none'" style="position:absolute;top:14px;right:16px;background:transparent;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;line-height:1;">✕</button>
+      <h2 style="font-family:'Noto Serif TC',serif;font-size:18px;font-weight:700;color:var(--accent2);margin-bottom:20px;">✦ 敬拜播放器 使用說明</h2>
+      <div style="display:flex;flex-direction:column;gap:16px;font-size:13px;line-height:1.8;color:var(--text-muted);">
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">📽️ 影片播放</div>點「選擇影片」選擇本機影片（mp4 等）。載入後按 ▶ 播放，拖拉進度條可跳轉。</div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🎵 編輯歌詞</div>點「✏️ 編輯歌詞」輸入歌詞，每行一句。<br>用 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">[Verse]</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">[Chorus]</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">[Bridge]</code> 或中文「主歌」「副歌」標記段落（不計入歌詞行）。輸入完成按「套用歌詞 →」。</div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">📖 歌詞簡報</div>每次顯示兩行大字（當前），下方兩行小字（預告）。<br>按「上一頁／下一頁」或鍵盤 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">← →</code> 翻頁，每次跳兩行。</div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🔡 字體大小</div>按 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">A-</code> / <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">A+</code> 即時調整歌詞字體大小（40%～200%）。</div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">⛪ 教會名稱</div>輸入教會名稱，顯示在歌詞區右下角。</div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🎨 背景選項</div><b style="color:var(--text);">單色</b>：旁邊色盤選任意顏色。<br><b style="color:var(--text);">自訂背景</b>：選擇本機圖片作為背景。<br><b style="color:var(--text);">動態</b>：浮動星塵粒子動態背景。</div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">⛶ 全螢幕</div>按「全螢幕」進入全螢幕，按 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">Esc</code> 離開。</div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">↕️ 調整比例</div>拖拉歌詞區與影片之間的分隔線，調整上下顯示比例。</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bottom-bar">
+
+    <!-- ROW 1: title + tabs + file -->
+    <div class="source-row">
+      <span class="app-title">✦ 敬拜播放器</span>
+      <div class="bar-sep"></div>
+      <button class="btab active" data-tab="view" id="btab-view">歌詞簡報</button>
+      <button class="btab" data-tab="edit" id="btab-edit">✏️ 編輯歌詞</button>
+      <div class="bar-sep"></div>
+      <label class="file-btn" for="file-input">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12V4M8 8l4-4 4 4"/></svg>
+        選擇影片
+      </label>
+      <input type="file" id="file-input" accept="video/*">
+      <span class="filename" id="filename">未選擇</span>
+      <div class="bar-sep"></div>
+      <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">背景</span>
+      <button class="bg-btn active" id="bg-solid" onclick="setBg('solid')">單色</button>
+      <input type="color" id="bg-color" value="#0a0a12" title="選擇顏色" style="width:28px;height:28px;border:1px solid var(--border);border-radius:5px;background:none;cursor:pointer;padding:2px;" />
+      <button class="bg-btn" id="bg-image" onclick="setBg('image')">自訂背景</button>
+      <input type="file" id="bg-file" accept="image/*" style="display:none;">
+      <button class="bg-btn" id="bg-particle" onclick="setBg('particle')">動態</button>
+      <div class="bar-sep"></div>
+      <button class="bg-btn" id="btn-help" onclick="document.getElementById('help-modal').style.display='flex'">？ 說明</button>
+    </div>
+
+    <!-- ROW 2: song + church -->
+    <div class="source-row">
+      <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">🎵 歌名</span>
+      <input type="text" id="song-input" placeholder="輸入歌名" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:'Noto Sans TC',sans-serif;padding:4px 10px;outline:none;width:300px;transition:border-color 0.2s;" />
+      <div class="bar-sep"></div>
+      <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">⛪ 教會名稱</span>
+      <input type="text" id="church-input" placeholder="輸入教會名稱" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:'Noto Sans TC',sans-serif;padding:4px 10px;outline:none;width:180px;transition:border-color 0.2s;" />
+    </div>
+
+    <!-- ROW 2: playback + nav -->
+    <div class="control-row">
+      <button class="play-btn" id="btn-play" disabled title="播放／暫停">
+        <svg id="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+      </button>
+      <div class="progress-wrap">
+        <span class="time-label" id="time-cur">0:00</span>
+        <div class="progress-track" id="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+        <span class="time-label" id="time-dur">0:00</span>
+      </div>
+      <div class="bar-sep"></div>
+      <button class="nav-btn" id="btn-font-down" title="縮小字體">A-</button>
+      <span id="font-size-label" style="font-size:11px;color:var(--text-dim);min-width:36px;text-align:center;white-space:nowrap;">100%</span>
+      <button class="nav-btn" id="btn-font-up" title="放大字體">A+</button>
+      <div class="bar-sep"></div>
+      <button class="nav-btn" id="btn-prev" disabled>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        上一頁
+      </button>
+      <span class="slide-counter" id="slide-counter">—</span>
+      <button class="nav-btn" id="btn-next" disabled>
+        下一頁
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+      <div class="bar-sep"></div>
+      <button class="nav-btn" id="btn-fullscreen">
+        <svg id="icon-fs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
+        全螢幕
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── BACKGROUND ──
+const slideView = document.getElementById('slide-view');
+const slideEmpty = document.getElementById('slide-empty');
+const canvas = document.getElementById('particle-canvas');
+const ctx = canvas.getContext('2d');
+let particleAnim = null;
+let particles = [];
+
+function setBg(mode) {
+  document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('bg-' + mode).classList.add('active');
+
+  // stop particles
+  if (particleAnim) { cancelAnimationFrame(particleAnim); particleAnim = null; }
+  canvas.style.display = 'none';
+
+  if (mode === 'solid') {
+    const col = document.getElementById('bg-color').value;
+    slideView.style.backgroundImage = 'none';
+    slideView.style.backgroundColor = col;
+    slideEmpty.style.backgroundColor = col;
+    slideView.classList.remove('has-image');
+  } else if (mode === 'image') {
+    document.getElementById('bg-file').click();
+  } else if (mode === 'particle') {
+    slideView.style.backgroundImage = 'none';
+    slideView.style.backgroundColor = '#0a0a12';
+    slideEmpty.style.backgroundColor = '#0a0a12';
+    slideView.classList.remove('has-image');
+    canvas.style.display = 'block';
+    initParticles();
+    animParticles();
+  }
+}
+
+// color picker
+document.getElementById('bg-color').addEventListener('input', e => {
+  if (document.getElementById('bg-solid').classList.contains('active')) {
+    slideView.style.backgroundColor = e.target.value;
+    slideEmpty.style.backgroundColor = e.target.value;
+  }
+});
+
+// image upload
+document.getElementById('bg-file').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  const url = URL.createObjectURL(file);
+  slideView.style.backgroundImage = `url('${url}')`;
+  slideView.style.backgroundSize = 'cover';
+  slideView.style.backgroundPosition = 'center';
+  slideView.style.backgroundColor = '';
+  slideEmpty.style.backgroundImage = `url('${url}')`;
+  slideEmpty.style.backgroundSize = 'cover';
+  slideEmpty.style.backgroundPosition = 'center';
+  slideView.classList.add('has-image');
+  document.getElementById('bg-image').classList.add('active');
+  document.getElementById('bg-solid').classList.remove('active');
+  document.getElementById('bg-particle').classList.remove('active');
+});
+
+// particles
+function initParticles() {
+  particles = [];
+  const w = canvas.offsetWidth, h = canvas.offsetHeight;
+  canvas.width = w; canvas.height = h;
+  for (let i = 0; i < 80; i++) {
+    particles.push({
+      x: Math.random() * w, y: Math.random() * h,
+      r: Math.random() * 1.8 + 0.4,
+      dx: (Math.random() - 0.5) * 0.4,
+      dy: (Math.random() - 0.5) * 0.4,
+      o: Math.random() * 0.5 + 0.15
+    });
+  }
+}
+
+function animParticles() {
+  const w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  particles.forEach(p => {
+    p.x += p.dx; p.y += p.dy;
+    if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
+    if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(168,158,224,${p.o})`;
+    ctx.fill();
+  });
+  // draw connecting lines
+  for (let i = 0; i < particles.length; i++) {
+    for (let j = i + 1; j < particles.length; j++) {
+      const dx = particles[i].x - particles[j].x;
+      const dy = particles[i].y - particles[j].y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist < 100) {
+        ctx.beginPath();
+        ctx.moveTo(particles[i].x, particles[i].y);
+        ctx.lineTo(particles[j].x, particles[j].y);
+        ctx.strokeStyle = `rgba(168,158,224,${0.12 * (1 - dist/100)})`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+    }
+  }
+  particleAnim = requestAnimationFrame(animParticles);
+}
+
+window.addEventListener('resize', () => {
+  if (document.getElementById('bg-particle').classList.contains('active')) {
+    canvas.width = canvas.offsetWidth;
+    canvas.height = canvas.offsetHeight;
+    initParticles();
+  }
+});
+
+// ── FONT SIZE ──
+let fontScale = 1.0;
+const fontStep = 0.1;
+const fontMin = 0.4;
+const fontMax = 2.0;
+const slideStage = document.querySelector('.slide-stage');
+
+function applyFontScale() {
+  const main = Math.round(fontScale * 9);
+  const preview = Math.round(fontScale * 5);
+  document.querySelectorAll('.slide-line:not(.preview)').forEach(el => {
+    el.style.fontSize = `clamp(${Math.round(fontScale*44)}px, ${main}vw, ${Math.round(fontScale*100)}px)`;
+  });
+  document.querySelectorAll('.slide-line.preview').forEach(el => {
+    el.style.fontSize = `clamp(${Math.round(fontScale*28)}px, ${preview}vw, ${Math.round(fontScale*60)}px)`;
+  });
+  document.getElementById('font-size-label').textContent = Math.round(fontScale * 100) + '%';
+}
+
+document.getElementById('btn-font-up').addEventListener('click', () => {
+  if (fontScale < fontMax) { fontScale = Math.round((fontScale + fontStep) * 10) / 10; applyFontScale(); }
+});
+document.getElementById('btn-font-down').addEventListener('click', () => {
+  if (fontScale > fontMin) { fontScale = Math.round((fontScale - fontStep) * 10) / 10; applyFontScale(); }
+});
+
+// ── FULLSCREEN ──
+document.getElementById('btn-fullscreen').addEventListener('click', () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen();
+  } else {
+    document.exitFullscreen();
+  }
+});
+document.addEventListener('fullscreenchange', () => {
+  const isFs = !!document.fullscreenElement;
+  const btn = document.getElementById('btn-fullscreen');
+  const svg = document.getElementById('icon-fs');
+  btn.childNodes[btn.childNodes.length-1].textContent = isFs ? ' 離開全螢幕' : ' 全螢幕';
+  svg.innerHTML = isFs
+    ? '<path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3"/>'
+    : '<path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>';
+});
+
+// ── SONG TITLE ──
+document.getElementById('song-input').addEventListener('input', e => {
+  document.getElementById('song-title-display').textContent = e.target.value;
+});
+
+// ── CHURCH NAME ──
+document.getElementById('church-input').addEventListener('input', e => {
+  document.getElementById('church-name').textContent = e.target.value;
+});
+
+// ── LOCAL VIDEO ──
+const player = document.getElementById('player');
+const btnPlay = document.getElementById('btn-play');
+const iconPlay = document.getElementById('icon-play');
+const iconPause = document.getElementById('icon-pause');
+const progressFill = document.getElementById('progress-fill');
+const progressTrack = document.getElementById('progress-track');
+const timeCur = document.getElementById('time-cur');
+const timeDur = document.getElementById('time-dur');
+
+function fmt(s) { const m = Math.floor(s/60), sec = Math.floor(s%60); return m+':'+(sec<10?'0':'')+sec; }
+function updatePlayIcon() {
+  iconPlay.style.display = player.paused ? '' : 'none';
+  iconPause.style.display = player.paused ? 'none' : '';
+}
+btnPlay.addEventListener('click', () => { player.paused ? player.play() : player.pause(); });
+player.addEventListener('play', updatePlayIcon);
+player.addEventListener('pause', updatePlayIcon);
+player.addEventListener('ended', updatePlayIcon);
+player.addEventListener('timeupdate', () => {
+  if (!player.duration) return;
+  progressFill.style.width = (player.currentTime / player.duration * 100) + '%';
+  timeCur.textContent = fmt(player.currentTime);
+});
+player.addEventListener('loadedmetadata', () => {
+  timeDur.textContent = fmt(player.duration);
+  btnPlay.disabled = false;
+});
+progressTrack.addEventListener('click', e => {
+  if (!player.duration) return;
+  const rect = progressTrack.getBoundingClientRect();
+  player.currentTime = ((e.clientX - rect.left) / rect.width) * player.duration;
+});
+
+document.getElementById('file-input').addEventListener('change', e => {
+  const file = e.target.files[0]; if (!file) return;
+  player.src = URL.createObjectURL(file);
+  player.style.display = 'block';
+  document.getElementById('no-video').style.display = 'none';
+  document.getElementById('filename').textContent = file.name.length > 18 ? file.name.slice(0,16)+'…' : file.name;
+  progressFill.style.width = '0%';
+  timeCur.textContent = '0:00'; timeDur.textContent = '0:00';
+  btnPlay.disabled = true;
+  iconPlay.style.display = ''; iconPause.style.display = 'none';
+});
+
+// ── TABS ──
+document.querySelectorAll('.btab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.btab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+  });
+});
+
+// ── RESIZER ──
+const resizer = document.getElementById('resizer');
+const lyricsPanel = document.getElementById('lyrics-panel');
+const mainEl = document.getElementById('main');
+function initH() { lyricsPanel.style.height = Math.round(mainEl.clientHeight * 0.52) + 'px'; }
+initH(); window.addEventListener('resize', initH);
+let drag = false, sy = 0, sh = 0;
+resizer.addEventListener('mousedown', e => { drag=true; sy=e.clientY; sh=lyricsPanel.offsetHeight; resizer.classList.add('dragging'); document.body.style.cursor='row-resize'; document.body.style.userSelect='none'; });
+document.addEventListener('mousemove', e => { if(!drag) return; const mh=mainEl.clientHeight; lyricsPanel.style.height=Math.min(Math.max(sh+e.clientY-sy,80),mh-120)+'px'; });
+document.addEventListener('mouseup', () => { if(!drag) return; drag=false; resizer.classList.remove('dragging'); document.body.style.cursor=''; document.body.style.userSelect=''; });
+resizer.addEventListener('touchstart', e => { drag=true; sy=e.touches[0].clientY; sh=lyricsPanel.offsetHeight; resizer.classList.add('dragging'); },{passive:true});
+document.addEventListener('touchmove', e => { if(!drag) return; const mh=mainEl.clientHeight; lyricsPanel.style.height=Math.min(Math.max(sh+e.touches[0].clientY-sy,80),mh-120)+'px'; },{passive:true});
+document.addEventListener('touchend', () => { drag=false; resizer.classList.remove('dragging'); });
+
+// ── SLIDES ──
+let slides=[], current=0;
+const labelMap={
+  verse:'Verse', chorus:'Chorus', bridge:'Bridge', pre:'Pre-Chorus',
+  outro:'Outro', intro:'Intro',
+  主歌:'主歌', 副歌:'副歌', 橋段:'橋段', 前奏:'前奏', 尾奏:'尾奏',
+  interlude:'Interlude', refrain:'Refrain', tag:'Tag'
+};
+// section keywords to detect and skip as labels (not lyrics)
+const sectionKeywords = ['verse','chorus','bridge','pre-chorus','outro','intro','interlude','refrain','tag','主歌','副歌','橋段','前奏','尾奏'];
+
+function parseToSlides(raw){
+  const r=[];let lb='';
+  raw.split('\n').forEach(l=>{
+    const t=l.trim();if(!t)return;
+    // bracket style: [Verse], [主歌]
+    const m=t.match(/^\[(.+)\]$/);
+    if(m){lb=labelMap[m[1]]||m[1];return;}
+    // plain keyword line (e.g. "Verse", "副歌", "Chorus:")
+    const lower=t.toLowerCase().replace(/[:\s]/g,'');
+    if(sectionKeywords.includes(lower)||sectionKeywords.includes(t.replace(/[:\s]/g,''))){
+      lb=labelMap[t.replace(/[:\s]/g,'')]||t;return;
+    }
+    r.push({label:lb,line:t});
+  });
+  return r;
+}
+function showSlide(idx){
+  if(!slides.length)return;
+  current=Math.max(0,Math.min(idx,slides.length-1));
+  const s0=slides[current],s1=slides[current+1],s2=slides[current+2],s3=slides[current+3];
+  document.getElementById('slide-label').textContent=s0.label||'';
+  const l1=document.getElementById('line1'),l2=document.getElementById('line2');
+  const l3=document.getElementById('line3'),l4=document.getElementById('line4');
+  // current lines
+  l1.textContent=s0.line; l1.classList.remove('empty');
+  if(s1){l2.textContent=s1.line;l2.classList.remove('empty');}else{l2.textContent=' ';l2.classList.add('empty');}
+  // preview lines
+  if(s2){l3.textContent=s2.line;l3.classList.remove('empty');}else{l3.textContent=' ';l3.classList.add('empty');}
+  if(s3){l4.textContent=s3.line;l4.classList.remove('empty');}else{l4.textContent=' ';l4.classList.add('empty');}
+  document.getElementById('slide-counter').textContent=(current+1)+' / '+slides.length;
+  document.getElementById('btn-prev').disabled=current===0;
+  document.getElementById('btn-next').disabled=current+2>=slides.length;
+}
+function loadLyrics(raw){
+  slides=parseToSlides(raw);
+  if(!slides.length){document.getElementById('slide-empty').style.display='flex';document.getElementById('slide-view').style.display='none';document.getElementById('slide-counter').textContent='—';document.getElementById('btn-prev').disabled=true;document.getElementById('btn-next').disabled=true;return;}
+  document.getElementById('slide-empty').style.display='none';document.getElementById('slide-view').style.display='flex';showSlide(0);
+}
+document.getElementById('btn-prev').addEventListener('click',()=>showSlide(current-2));
+document.getElementById('btn-next').addEventListener('click',()=>showSlide(current+2));
+document.addEventListener('keydown',e=>{if(e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT')return;if(e.key==='ArrowRight'||e.key==='ArrowDown')showSlide(current+2);if(e.key==='ArrowLeft'||e.key==='ArrowUp')showSlide(current-2);});
+document.getElementById('btn-apply').addEventListener('click',()=>{
+  loadLyrics(document.getElementById('lyrics-editor').value);
+  document.querySelectorAll('.btab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('btab-view').classList.add('active');
+  document.getElementById('panel-view').classList.add('active');
+});
+document.getElementById('btn-clear').addEventListener('click',()=>{document.getElementById('lyrics-editor').value='';});
+</script>
+</body>
+</html>
