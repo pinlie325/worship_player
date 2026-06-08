@@ -26,7 +26,7 @@
   .slide-view { flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; min-height: 0; position: relative; }
   .church-name { position: absolute; bottom: 16px; right: 24px; font-size: clamp(16px, 2.2vw, 28px); color: rgba(255,255,255,0.75); font-family: 'Noto Serif TC', serif; font-weight: 500; letter-spacing: 0.08em; pointer-events: none; }
   .song-title-display { position: absolute; top: 14px; right: 20px; font-size: clamp(13px, 1.6vw, 20px); color: rgba(255,255,255,0.5); font-family: 'Noto Serif TC', serif; font-weight: 400; letter-spacing: 0.06em; pointer-events: none; }
-  .slide-label { position: absolute; top: 10px; left: 18px; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255,255,255,0.2); pointer-events: none; }
+  .slide-label { position: absolute; top: 12px; left: 20px; font-size: clamp(14px, 2vw, 26px); letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.75); pointer-events: none; font-family: 'Noto Sans TC', sans-serif; font-weight: 500; }
   .slide-stage { flex: 1 1 auto; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px 56px; gap: 16px; min-height: 0; }
   .slide-line { font-family: 'Noto Serif TC', serif; font-size: clamp(44px, 9vw, 100px); font-weight: 500; line-height: 1.4; color: var(--text); text-align: center; width: 100%; }
   .slide-line.preview { font-size: clamp(28px, 5vw, 60px); color: var(--text-dim); font-weight: 400; }
@@ -64,7 +64,7 @@
   .resizer:hover .resizer-dots span, .resizer.dragging .resizer-dots span { background: rgba(255,255,255,0.5); }
 
   /* VIDEO PANEL */
-  .video-panel { flex: 1 1 auto; display: flex; flex-direction: column; background: #000; overflow: hidden; min-height: 0; }
+  .video-panel { flex: 1 1 auto; display: flex; flex-direction: column; background: #000; overflow: hidden; min-height: 0; position: relative; }
   .video-wrap { flex: 1 1 auto; display: flex; align-items: center; justify-content: center; background: #000; overflow: hidden; min-height: 0; position: relative; }
   #player { width: 100%; height: 100%; object-fit: contain; display: none; background: #000; }
   #yt-frame { width: 100%; height: 100%; display: none; border: none; }
@@ -111,8 +111,6 @@
   .btab { padding: 5px 12px; font-size: 12px; color: var(--text-dim); cursor: pointer; border-radius: 6px; border: 1px solid transparent; transition: all 0.2s; user-select: none; white-space: nowrap; font-family: 'Noto Sans TC', sans-serif; background: transparent; }
   .btab.active { color: var(--accent2); border-color: var(--accent); background: rgba(124,111,224,0.1); }
   .btab:hover:not(.active) { color: var(--text-muted); border-color: var(--border); }
-
-  .spacer { flex: 1; }
 
   /* play btn */
   .play-btn { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex-shrink: 0; background: var(--accent); border: none; border-radius: 50%; color: #fff; cursor: pointer; transition: all 0.18s; }
@@ -200,14 +198,22 @@
   </div>
 
   <!-- VIDEO -->
-  <div class="video-panel">
-    <div class="video-wrap">
+  <div class="video-panel" id="video-panel">
+    <div class="video-wrap" style="position:relative;">
       <div class="no-video" id="no-video">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M10 9l5 3-5 3V9z"/></svg>
         <p>請選擇影片檔案</p>
       </div>
       <video id="player" style="display:none;"></video>
       <iframe id="yt-frame" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+      <!-- OVERLAY LYRICS -->
+      <div id="overlay-lyrics" style="display:none;position:absolute;inset:0;z-index:10;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px 5% 0;pointer-events:none;">
+        <div style="font-size:clamp(14px,2vw,24px);letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.85);font-family:'Noto Sans TC',sans-serif;font-weight:500;margin-bottom:6px;align-self:flex-start;" id="ov-label"></div>
+        <div style="display:inline-flex;flex-direction:column;align-items:center;background:#000;padding:14px 36px 18px;border-radius:12px;max-width:90%;">
+          <div style="font-family:'Noto Serif TC',serif;font-size:clamp(32px,5.5vw,72px);font-weight:700;line-height:1.5;color:#fff;text-align:center;white-space:nowrap;" id="ov-line1"></div>
+          <div style="font-family:'Noto Serif TC',serif;font-size:clamp(32px,5.5vw,72px);font-weight:700;line-height:1.5;color:#fff;text-align:center;white-space:nowrap;" id="ov-line2"></div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -236,7 +242,6 @@
     <div class="source-row">
       <span class="app-title">✦ 敬拜播放器</span>
       <div class="bar-sep"></div>
-      <button class="btab active" data-tab="view" id="btab-view">歌詞簡報</button>
       <button class="btab" data-tab="edit" id="btab-edit">✏️ 編輯歌詞</button>
       <div class="bar-sep"></div>
       <label class="file-btn" for="file-input">
@@ -291,6 +296,8 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
       </button>
       <div class="bar-sep"></div>
+      <button class="nav-btn" id="btn-overlay" onclick="toggleOverlay()">⊡ 疊加模式</button>
+      <div class="bar-sep"></div>
       <button class="nav-btn" id="btn-fullscreen">
         <svg id="icon-fs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
         全螢幕
@@ -300,6 +307,10 @@
 </div>
 
 <script>
+// placeholder — real definition below
+function syncOverlay() {}
+function toggleOverlay() {}
+
 // ── BACKGROUND ──
 const slideView = document.getElementById('slide-view');
 const slideEmpty = document.getElementById('slide-empty');
@@ -457,6 +468,11 @@ document.addEventListener('fullscreenchange', () => {
   svg.innerHTML = isFs
     ? '<path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3"/>'
     : '<path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>';
+  // fix overlay position in fullscreen
+  const ol = document.getElementById('overlay-lyrics');
+  if (overlayOn) {
+    ol.style.position = isFs ? 'fixed' : 'absolute';
+  }
 });
 
 // ── SONG TITLE ──
@@ -534,13 +550,24 @@ document.getElementById('file-input').addEventListener('change', e => {
 });
 
 // ── TABS ──
-document.querySelectorAll('.btab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.btab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-    tab.classList.add('active');
-    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
-  });
+document.getElementById('btab-edit').addEventListener('click', () => {
+  const pe = document.getElementById('panel-edit');
+  const pv = document.getElementById('panel-view');
+  const btn = document.getElementById('btab-edit');
+  const isEdit = pe.style.display === 'flex';
+  if (isEdit) {
+    pe.style.display = 'none'; pe.classList.remove('active');
+    pv.style.display = 'flex'; pv.classList.add('active');
+    btn.classList.remove('active');
+    if (slides.length > 0) {
+      document.getElementById('slide-empty').style.display = 'none';
+      document.getElementById('slide-view').style.display = 'flex';
+    }
+  } else {
+    pv.style.display = 'none'; pv.classList.remove('active');
+    pe.style.display = 'flex'; pe.classList.add('active');
+    btn.classList.add('active');
+  }
 });
 
 // ── RESIZER ──
@@ -600,6 +627,7 @@ function showSlide(idx){
   document.getElementById('slide-counter').textContent=(current+1)+' / '+slides.length;
   document.getElementById('btn-prev').disabled=current===0;
   document.getElementById('btn-next').disabled=current+2>=slides.length;
+  syncOverlay();
 }
 function loadLyrics(raw){
   slides=parseToSlides(raw);
@@ -611,12 +639,61 @@ document.getElementById('btn-next').addEventListener('click',()=>showSlide(curre
 document.addEventListener('keydown',e=>{if(e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT')return;if(e.key==='ArrowRight'||e.key==='ArrowDown')showSlide(current+2);if(e.key==='ArrowLeft'||e.key==='ArrowUp')showSlide(current-2);});
 document.getElementById('btn-apply').addEventListener('click',()=>{
   loadLyrics(document.getElementById('lyrics-editor').value);
-  document.querySelectorAll('.btab').forEach(t=>t.classList.remove('active'));
-  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
-  document.getElementById('btab-view').classList.add('active');
-  document.getElementById('panel-view').classList.add('active');
+  const pe = document.getElementById('panel-edit');
+  const pv = document.getElementById('panel-view');
+  pe.style.display = 'none'; pe.classList.remove('active');
+  pv.style.display = 'flex'; pv.classList.add('active');
+  document.getElementById('btab-edit').classList.remove('active');
 });
 document.getElementById('btn-clear').addEventListener('click',()=>{document.getElementById('lyrics-editor').value='';});
+
+// ── OVERLAY MODE ──
+let overlayOn = false;
+let savedLyricsHeight = '';
+
+function toggleOverlay() {
+  overlayOn = !overlayOn;
+  const btn = document.getElementById('btn-overlay');
+  const ol = document.getElementById('overlay-lyrics');
+  const resizer = document.getElementById('resizer');
+  const lp = document.getElementById('lyrics-panel');
+  const vp = document.getElementById('video-panel');
+
+  btn.classList.toggle('active', overlayOn);
+  btn.textContent = overlayOn ? '⊟ 離開疊加' : '⊡ 疊加模式';
+
+  if (overlayOn) {
+    savedLyricsHeight = lp.offsetHeight + 'px';
+    lp.style.display = 'none';
+    resizer.style.display = 'none';
+    vp.style.flex = '1 1 auto';
+    ol.style.display = 'flex';
+    syncOverlay();
+  } else {
+    ol.style.display = 'none';
+    ol.style.position = 'absolute';
+    resizer.style.display = '';
+    vp.style.flex = '';
+    lp.style.display = 'flex';
+    lp.style.height = savedLyricsHeight || (Math.round(mainEl.clientHeight * 0.52) + 'px');
+    document.getElementById('btab-edit').classList.remove('active');
+    document.getElementById('panel-edit').style.display = 'none';
+    document.getElementById('panel-edit').classList.remove('active');
+    document.getElementById('panel-view').style.display = 'flex';
+    document.getElementById('panel-view').classList.add('active');
+    if (slides.length > 0) {
+      document.getElementById('slide-empty').style.display = 'none';
+      document.getElementById('slide-view').style.display = 'flex';
+    }
+  }
+}
+
+function syncOverlay() {
+  if (!overlayOn) return;
+  document.getElementById('ov-label').textContent = document.getElementById('slide-label').textContent;
+  document.getElementById('ov-line1').textContent = document.getElementById('line1').textContent;
+  document.getElementById('ov-line2').textContent = document.getElementById('line2').textContent;
+};
 </script>
 </body>
 </html>
