@@ -124,7 +124,9 @@
   /* progress */
   .progress-wrap { flex: 1; display: flex; align-items: center; gap: 7px; min-width: 0; }
   .time-label { font-size: 11px; color: var(--text-dim); white-space: nowrap; font-variant-numeric: tabular-nums; }
-  .progress-track { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; cursor: pointer; position: relative; }
+  .progress-track { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; cursor: grab; position: relative; transition: height 0.15s; }
+  .progress-track:hover, .progress-track:active { height: 7px; cursor: grab; }
+  .progress-track:active { cursor: grabbing; }
   .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; width: 0%; pointer-events: none; }
   .progress-track:hover .progress-fill { background: var(--accent2); }
 
@@ -495,10 +497,28 @@ player.addEventListener('loadedmetadata', () => {
   timeDur.textContent = fmt(player.duration);
   btnPlay.disabled = false;
 });
-progressTrack.addEventListener('click', e => {
+// progress drag
+let isDragging = false;
+function seekTo(e) {
   if (!player.duration) return;
   const rect = progressTrack.getBoundingClientRect();
-  player.currentTime = ((e.clientX - rect.left) / rect.width) * player.duration;
+  const pct = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 1);
+  player.currentTime = pct * player.duration;
+  progressFill.style.width = (pct * 100) + '%';
+  timeCur.textContent = fmt(player.currentTime);
+}
+progressTrack.addEventListener('mousedown', e => {
+  isDragging = true;
+  seekTo(e);
+  document.body.style.userSelect = 'none';
+  document.body.style.cursor = 'grabbing';
+});
+document.addEventListener('mousemove', e => { if (isDragging) seekTo(e); });
+document.addEventListener('mouseup', e => {
+  if (!isDragging) return;
+  isDragging = false;
+  document.body.style.userSelect = '';
+  document.body.style.cursor = '';
 });
 
 document.getElementById('file-input').addEventListener('change', e => {
