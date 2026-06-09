@@ -165,9 +165,10 @@
         <span style="font-size:32px;opacity:0.2">♪</span>
         <p>請在「編輯歌詞」輸入並套用歌詞</p>
       </div>
+      <div class="song-title-display" id="song-title-display" style="z-index:5;"></div>
+      <div class="church-name" id="church-name" style="z-index:5;"></div>
       <div class="slide-view" id="slide-view" style="display:none;position:relative;z-index:3;">
         <div class="slide-label" id="slide-label"></div>
-        <div class="song-title-display" id="song-title-display"></div>
         <div class="slide-stage">
           <div class="slide-line" id="line1"></div>
           <div class="slide-line" id="line2"></div>
@@ -175,7 +176,7 @@
           <div class="slide-line preview" id="line3"></div>
           <div class="slide-line preview" id="line4"></div>
         </div>
-        <div class="church-name" id="church-name"></div>
+        
       </div>
     </div>
     <div class="panel" id="panel-edit">
@@ -268,18 +269,25 @@
       <div class="bar-sep"></div>
       <!-- 背景群組 -->
       <span class="group-label">背景</span>
-      <button class="bg-btn" id="bg-default" onclick="setBg('default')">預設</button>
-      <button class="bg-btn active" id="bg-solid" onclick="setBg('solid')">單色</button>
+      <button class="bg-btn active" id="bg-default" onclick="setBg('default')">預設</button>
+      <button class="bg-btn" id="bg-solid" onclick="setBg('solid')">單色</button>
       <input type="color" id="bg-color" value="#0a0a12" title="選擇顏色" style="width:26px;height:26px;border:1px solid var(--border);border-radius:5px;background:none;cursor:pointer;padding:2px;" />
       <button class="bg-btn" id="bg-image" onclick="setBg('image')">自訂背景</button>
       <input type="file" id="bg-file" accept="image/*" style="display:none;">
       <input type="range" id="bg-brightness" min="-100" max="100" value="0" style="width:72px;cursor:pointer;accent-color:var(--accent);display:none;" title="亮度" />
       <button class="bg-btn" id="bg-particle" onclick="setBg('particle')">動態</button>
-      <select id="particle-type" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:11px;font-family:'Noto Sans TC',sans-serif;padding:3px 6px;cursor:pointer;outline:none;">
-        <option value="stars">✨ 閃爍星星</option>
-        <option value="meteor">🌟 流星劃過</option>
-        <option value="pulse">💫 光暈脈動</option>
-      </select>
+      <select id="particle-type" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:11px;padding:3px 6px;">
+<option value="forest">🌲 星空森林 Pro</option>
+<option value="gold">☀ 金色敬拜光芒</option>
+<option value="blue">🔵 藍色敬拜光芒</option>
+<option value="cloud">☁️ 雲霧敬拜</option>
+<option value="stars">✨ 純星空</option>
+<option value="meteor">🌠 流星夜空</option>
+<option value="godrays">✨ 多層體積光</option>
+<option value="breath">💓 呼吸光暈</option>
+<option value="particles">✨ 微粒漂浮</option>
+<option value="cloudflow">☁️ 雲霧流動</option>
+</select>
       <div class="bar-sep"></div>
       <!-- 歌詞顏色群組 -->
       <span class="group-label">歌詞色</span>
@@ -313,6 +321,7 @@
       <button class="nav-btn" id="btn-gap-down" style="padding:7px 10px;margin-left:4px;" title="縮小行距">≡-</button>
       <span id="gap-label" style="font-size:11px;color:var(--text-dim);min-width:30px;text-align:center;white-space:nowrap;">行距</span>
       <button class="nav-btn" id="btn-gap-up" style="padding:7px 10px;" title="放大行距">≡+</button>
+      
       <div class="bar-sep"></div>
       <button class="play-btn" id="btn-play" disabled title="播放／暫停">
         <svg id="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
@@ -323,8 +332,7 @@
         <div class="progress-track" id="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
         <span class="time-label" id="time-dur">0:00</span>
       </div>
-      <div class="bar-sep"></div>
-      <div class="bar-sep"></div>
+<div class="bar-sep"></div>
       <button class="nav-btn" id="btn-prev" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
         上一頁
@@ -375,7 +383,7 @@ function setTextMode(mode) {
 
   if (mode === 'dark') {
     mainColor = 'var(--text)'; previewColor = 'var(--text-dim)';
-    labelColor = 'rgba(255,255,255,0.75)'; dividerColor = 'rgba(255,255,255,0.1)';
+    labelColor = 'rgba(255,255,255,0.75)'; dividerColor = 'transparent';
     mainShadow = 'none'; previewShadow = 'none';
   } else if (mode === 'light') {
     mainColor = '#111'; previewColor = '#888';
@@ -542,22 +550,81 @@ let frameCount = 0;
 let meteors = [];
 let pulseR = 0, pulseGrow = true;
 
+
 function startAnimation() {
   const type = document.getElementById('particle-type').value;
   const w = canvas.width, h = canvas.height;
   frameCount = 0; particles = []; meteors = [];
-
-  if (type === 'stars') {
-    for (let i = 0; i < 120; i++) particles.push({ x: Math.random()*w, y: Math.random()*h, r: Math.random()*1.5+0.3, o: Math.random(), do: (Math.random()*0.02+0.005)*(Math.random()<0.5?1:-1) });
-    animStars();
-  } else if (type === 'meteor') {
-    for (let i = 0; i < 80; i++) particles.push({ x: Math.random()*w, y: Math.random()*h, r: Math.random()*1+0.3, o: Math.random()*0.6+0.1 });
-    animMeteor();
-  } else if (type === 'pulse') {
-    pulseR = 0; pulseGrow = true;
-    animPulse();
-  }
+  for(let i=0;i<250;i++) particles.push({x:Math.random()*w,y:Math.random()*h,r:Math.random()*2+0.3,o:Math.random(),v:Math.random()*0.4+0.1});
+  runUltimate(type);
 }
+
+function runUltimate(type){
+ const w=canvas.width,h=canvas.height;
+ ctx.clearRect(0,0,w,h);
+
+ function bg(a,b){
+   let g=ctx.createLinearGradient(0,0,0,h);
+   g.addColorStop(0,a);g.addColorStop(1,b);
+   ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+ }
+ function stars(){
+   particles.forEach(p=>{
+     ctx.fillStyle='white';
+     ctx.fillRect(p.x,p.y,2,2);
+   });
+ }
+ function floatParticles(){
+   particles.forEach(p=>{
+      p.y-=p.v;
+      if(p.y<0) p.y=h;
+      ctx.fillStyle='rgba(255,255,255,.5)';
+      ctx.fillRect(p.x,p.y,2,2);
+   });
+ }
+ function breath(color){
+   let r=260+Math.sin(Date.now()/1000)*80;
+   let g=ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,r);
+   g.addColorStop(0,color);
+   g.addColorStop(1,'transparent');
+   ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+ }
+ function rays(color){
+   for(let i=0;i<5;i++){
+      let p=w/2+Math.sin(Date.now()/3000+i)*180;
+      let g=ctx.createLinearGradient(p-220,0,p+220,0);
+      g.addColorStop(0,'transparent');
+      g.addColorStop(.5,color);
+      g.addColorStop(1,'transparent');
+      ctx.fillStyle=g;
+      ctx.fillRect(p-220,0,440,h);
+   }
+ }
+ function clouds(){
+   for(let i=0;i<6;i++){
+      let gx=w/2+Math.sin(Date.now()/4000+i)*300;
+      let g=ctx.createRadialGradient(gx,150+i*60,0,gx,150+i*60,220);
+      g.addColorStop(0,'rgba(120,180,255,.12)');
+      g.addColorStop(1,'transparent');
+      ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+   }
+ }
+
+ switch(type){
+   case 'forest': bg('#08162f','#02050a'); stars(); rays('rgba(120,180,255,.15)'); floatParticles(); break;
+   case 'gold': bg('#2b1a00','#080500'); rays('rgba(255,220,120,.18)'); breath('rgba(255,220,120,.28)'); floatParticles(); break;
+   case 'blue': bg('#06152e','#020912'); rays('rgba(120,180,255,.18)'); breath('rgba(120,180,255,.28)'); floatParticles(); break;
+   case 'cloud': bg('#08152d','#030812'); clouds(); breath('rgba(120,180,255,.18)'); break;
+   case 'stars': bg('#000814','#000'); stars(); break;
+   case 'meteor': bg('#020814','#000'); stars(); if(Math.random()<0.03) meteors.push({x:Math.random()*w,y:0,o:1}); meteors.forEach(m=>{ctx.strokeStyle='rgba(255,255,255,'+m.o+')';ctx.beginPath();ctx.moveTo(m.x,m.y);ctx.lineTo(m.x-100,m.y-80);ctx.stroke();m.x+=8;m.y+=8;m.o-=0.01;}); meteors=meteors.filter(m=>m.o>0); break;
+   case 'godrays': bg('#08152d','#000'); rays('rgba(255,255,255,.18)'); break;
+   case 'breath': bg('#08152d','#000'); breath('rgba(255,255,255,.35)'); break;
+   case 'particles': bg('#08152d','#000'); floatParticles(); break;
+   case 'cloudflow': bg('#08152d','#000'); clouds(); break;
+ }
+ particleAnim=requestAnimationFrame(()=>runUltimate(type));
+}
+
 
 function animStars() {
   const w=canvas.width, h=canvas.height;
