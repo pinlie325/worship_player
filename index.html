@@ -37,11 +37,14 @@
   .bg-btn:hover:not(.active) { color: var(--text-muted); border-color: rgba(255,255,255,0.15); }
 
   /* BG canvas for particles */
-  #particle-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; display: none; }
+  #particle-canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
   /* bg image */
-  .slide-view.has-image { background-size: cover; background-position: center; }
-  .slide-view.has-image .slide-stage { background: rgba(0,0,0,0.45); }
+  .slide-view.has-image { background-size: cover; background-position: center; background-repeat: no-repeat; }
+  .slide-view.has-image .slide-stage { background: transparent; }
+  /* brightness overlay */
+  .bg-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 0; transition: background 0.2s; }
+  .slide-view > *:not(.bg-overlay) { position: relative; z-index: 1; }
 
   /* EDITOR */
   .editor-wrap { flex: 1 1 auto; display: flex; flex-direction: column; padding: 14px 16px; gap: 10px; overflow: hidden; min-height: 0; }
@@ -97,20 +100,21 @@
   .yt-load-btn { padding: 5px 12px; background: #FF0000; border: none; border-radius: 6px; color: #fff; font-size: 12px; font-family: 'Noto Sans TC', sans-serif; cursor: pointer; white-space: nowrap; transition: opacity 0.2s; }
   .yt-load-btn:hover { opacity: 0.85; }
 
-  .file-btn { display: flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 12px; font-family: 'Noto Sans TC', sans-serif; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+  .file-btn { display: flex; align-items: center; gap: 6px; padding: 5px 12px; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text-muted); font-size: 12px; font-family: 'Noto Sans TC', sans-serif; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
   .file-btn:hover { border-color: var(--accent); color: var(--accent2); }
   .file-btn svg { width: 13px; height: 13px; }
   #file-input { display: none; }
   .filename { font-size: 11px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; }
 
   /* control row */
-  .control-row { display: flex; align-items: center; gap: 10px; padding: 8px 14px; }
+  .control-row { display: flex; align-items: center; gap: 6px; padding: 8px 14px; }
   .app-title { font-family: 'Noto Serif TC', serif; font-size: 13px; font-weight: 700; color: var(--accent2); white-space: nowrap; }
   .bar-sep { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; margin: 0 2px; }
+  .group-label { font-size: 11px; color: var(--accent2); white-space: nowrap; font-weight: 500; letter-spacing: 0.04em; }
 
-  .btab { padding: 5px 12px; font-size: 12px; color: var(--text-dim); cursor: pointer; border-radius: 6px; border: 1px solid transparent; transition: all 0.2s; user-select: none; white-space: nowrap; font-family: 'Noto Sans TC', sans-serif; background: transparent; }
+  .btab { padding: 5px 12px; font-size: 12px; color: var(--text-muted); cursor: pointer; border-radius: 6px; border: 1px solid var(--border); transition: all 0.2s; user-select: none; white-space: nowrap; font-family: 'Noto Sans TC', sans-serif; background: var(--surface2); }
   .btab.active { color: var(--accent2); border-color: var(--accent); background: rgba(124,111,224,0.1); }
-  .btab:hover:not(.active) { color: var(--text-muted); border-color: var(--border); }
+  .btab:hover:not(.active) { border-color: var(--accent); color: var(--accent2); }
 
   /* play btn */
   .play-btn { display: flex; align-items: center; justify-content: center; width: 34px; height: 34px; flex-shrink: 0; background: var(--accent); border: none; border-radius: 50%; color: #fff; cursor: pointer; transition: all 0.18s; }
@@ -151,13 +155,17 @@
 
   <!-- LYRICS -->
   <div class="lyrics-panel" id="lyrics-panel">
-    <div class="panel active" id="panel-view">
-      <div class="slide-empty" id="slide-empty">
+    <div class="panel active" id="panel-view" style="position:relative;">
+      <!-- bg layers: each independently shown/hidden -->
+      <div id="bg-solid-layer" style="position:absolute;inset:0;z-index:0;pointer-events:none;background:#0a0a12;"></div>
+      <img id="bg-img-el" style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:0;pointer-events:none;display:none;">
+      <canvas id="particle-canvas" style="position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:none;"></canvas>
+      <div class="bg-overlay" id="bg-overlay" style="position:absolute;inset:0;z-index:1;pointer-events:none;"></div>
+      <div class="slide-empty" id="slide-empty" style="position:relative;z-index:3;">
         <span style="font-size:32px;opacity:0.2">♪</span>
         <p>請在「編輯歌詞」輸入並套用歌詞</p>
       </div>
-      <div class="slide-view" id="slide-view" style="display:none;">
-        <canvas id="particle-canvas"></canvas>
+      <div class="slide-view" id="slide-view" style="display:none;position:relative;z-index:3;">
         <div class="slide-label" id="slide-label"></div>
         <div class="song-title-display" id="song-title-display"></div>
         <div class="slide-stage">
@@ -172,7 +180,7 @@
     </div>
     <div class="panel" id="panel-edit">
       <div class="editor-wrap">
-        <div class="editor-hint">每行一句歌詞，每次顯示兩行。用 <code>[Verse]</code>、<code>[Chorus]</code>、<code>[Bridge]</code> 標記段落（選填）。</div>
+        <div class="editor-hint">每行一句歌詞，每次顯示兩行。用 <code>[Verse]</code>、<code>[Chorus]</code>、<code>[Bridge]</code> 或中文 <code>主歌</code>、<code>副歌</code>、<code>橋段</code> 標記段落（不計入歌詞行）。輸入完成按「套用歌詞 →」。</div>
         <textarea id="lyrics-editor" placeholder="[Verse]
 主啊 祢是我心所渴慕
 我的靈渴想切慕祢主
@@ -224,13 +232,20 @@
       <h2 style="font-family:'Noto Serif TC',serif;font-size:18px;font-weight:700;color:var(--accent2);margin-bottom:20px;">✦ 敬拜播放器 使用說明</h2>
       <div style="display:flex;flex-direction:column;gap:16px;font-size:13px;line-height:1.8;color:var(--text-muted);">
         <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">📽️ 影片播放</div>點「選擇影片」選擇本機影片（mp4 等）。載入後按 ▶ 播放，拖拉進度條可跳轉。</div>
-        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🎵 編輯歌詞</div>點「✏️ 編輯歌詞」輸入歌詞，每行一句。<br>用 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">[Verse]</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">[Chorus]</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">[Bridge]</code> 或中文「主歌」「副歌」標記段落（不計入歌詞行）。輸入完成按「套用歌詞 →」。</div>
-        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">📖 歌詞簡報</div>每次顯示兩行大字（當前），下方兩行小字（預告）。<br>按「上一頁／下一頁」或鍵盤 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">← →</code> 翻頁，每次跳兩行。</div>
-        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🔡 字體大小</div>按 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">A-</code> / <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">A+</code> 即時調整歌詞字體大小（40%～200%）。</div>
-        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">⛪ 教會名稱</div>輸入教會名稱，顯示在歌詞區右下角。</div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🎵 編輯歌詞及頁面</div>
+          點「✏️ 編輯歌詞」輸入歌詞，每行一句。<br>
+          用 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">[Verse]</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">[Chorus]</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">[Bridge]</code> 或中文 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">主歌</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">副歌</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">橋段</code> 標記段落（不計入歌詞行）。輸入完成按「套用歌詞 →」。<br><br>
+          每次顯示兩行大字（當前），下方兩行小字（預告下一頁）。<br>
+          按「⏮ 上一頁 下一頁」或鍵盤 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">← →</code> 翻頁，每次跳兩行。<br>
+          有標記段落名稱的話，套用後會自動產生對應的快速跳轉按鈕，可直接點按跳到該段落。
+        </div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🔡 字體與行距</div>按 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">A-</code> / <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">A+</code> 調整字體大小，按 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">≡-</code> / <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">≡+</code> 調整行距。</div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🎵 歌名 ⛪ 教會名稱</div>輸入後分別顯示在歌詞區右上角與右下角。</div>
         <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🎨 背景選項</div><b style="color:var(--text);">單色</b>：旁邊色盤選任意顏色。<br><b style="color:var(--text);">自訂背景</b>：選擇本機圖片作為背景。<br><b style="color:var(--text);">動態</b>：浮動星塵粒子動態背景。</div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">⊟ 分割／疊加模式</div><b style="color:var(--text);">分割模式</b>：歌詞與影片上下分割顯示，中間可拖拉調整比例。<br><b style="color:var(--text);">疊加模式</b>：影片全螢幕，歌詞黑框浮在影片上方。</div>
         <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">⛶ 全螢幕</div>按「全螢幕」進入全螢幕，按 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">Esc</code> 離開。</div>
         <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">↕️ 調整比例</div>拖拉歌詞區與影片之間的分隔線，調整上下顯示比例。</div>
+        <div style="font-size:12px;color:var(--text-dim);border-top:1px solid var(--border);padding-top:12px;">按右上角 ✕ 或鍵盤 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">Esc</code> 關閉說明。</div>
       </div>
     </div>
   </div>
@@ -238,7 +253,7 @@
   <!-- BOTTOM BAR -->
   <div class="bottom-bar">
 
-    <!-- ROW 1: title + tabs + file -->
+    <!-- ROW 1: title + edit + file + bg + lyrics -->
     <div class="source-row">
       <span class="app-title">✦ 敬拜播放器</span>
       <div class="bar-sep"></div>
@@ -251,27 +266,54 @@
       <input type="file" id="file-input" accept="video/*">
       <span class="filename" id="filename">未選擇</span>
       <div class="bar-sep"></div>
-      <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">背景</span>
+      <!-- 背景群組 -->
+      <span class="group-label">背景</span>
+      <button class="bg-btn" id="bg-default" onclick="setBg('default')">預設</button>
       <button class="bg-btn active" id="bg-solid" onclick="setBg('solid')">單色</button>
-      <input type="color" id="bg-color" value="#0a0a12" title="選擇顏色" style="width:28px;height:28px;border:1px solid var(--border);border-radius:5px;background:none;cursor:pointer;padding:2px;" />
+      <input type="color" id="bg-color" value="#0a0a12" title="選擇顏色" style="width:26px;height:26px;border:1px solid var(--border);border-radius:5px;background:none;cursor:pointer;padding:2px;" />
       <button class="bg-btn" id="bg-image" onclick="setBg('image')">自訂背景</button>
       <input type="file" id="bg-file" accept="image/*" style="display:none;">
+      <input type="range" id="bg-brightness" min="-100" max="100" value="0" style="width:72px;cursor:pointer;accent-color:var(--accent);display:none;" title="亮度" />
       <button class="bg-btn" id="bg-particle" onclick="setBg('particle')">動態</button>
+      <select id="particle-type" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:11px;font-family:'Noto Sans TC',sans-serif;padding:3px 6px;cursor:pointer;outline:none;">
+        <option value="stars">✨ 閃爍星星</option>
+        <option value="meteor">🌟 流星劃過</option>
+        <option value="pulse">💫 光暈脈動</option>
+      </select>
       <div class="bar-sep"></div>
-      <button class="bg-btn" id="btn-help" onclick="document.getElementById('help-modal').style.display='flex'">？ 說明</button>
+      <!-- 歌詞顏色群組 -->
+      <span class="group-label">歌詞色</span>
+      <button class="bg-btn active" id="text-dark" onclick="setTextMode('dark')">白字</button>
+      <button class="bg-btn" id="text-light" onclick="setTextMode('light')">黑字</button>
+      <button class="bg-btn" id="text-custom" onclick="setTextMode('custom')">自訂</button>
+      <span id="custom-color-wrap" style="display:none;align-items:center;gap:4px;">
+        <span class="group-label">主</span>
+        <input type="color" id="text-color-main" value="#cc0000" title="主歌詞顏色" style="width:24px;height:24px;border:1px solid var(--border);border-radius:5px;background:none;cursor:pointer;padding:1px;" />
+        <span class="group-label">副</span>
+        <input type="color" id="text-color-preview" value="#888888" title="預告歌詞顏色" style="width:24px;height:24px;border:1px solid var(--border);border-radius:5px;background:none;cursor:pointer;padding:1px;" />
+      </span>
     </div>
 
-    <!-- ROW 2: song + church -->
-    <div class="source-row">
-      <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">🎵 歌名</span>
-      <input type="text" id="song-input" placeholder="輸入歌名" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:'Noto Sans TC',sans-serif;padding:4px 10px;outline:none;width:300px;transition:border-color 0.2s;" />
-      <div class="bar-sep"></div>
-      <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">⛪ 教會名稱</span>
-      <input type="text" id="church-input" placeholder="輸入教會名稱" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:'Noto Sans TC',sans-serif;padding:4px 10px;outline:none;width:180px;transition:border-color 0.2s;" />
-    </div>
-
-    <!-- ROW 2: playback + nav -->
+    <!-- ROW 2: play + font + nav -->
     <div class="control-row">
+      
+      
+<select id="font-family-select" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;padding:6px;">
+  <option value="'Noto Serif TC', serif">明體</option>
+  <option value="'Noto Sans TC', sans-serif">黑體</option>
+  <option value="'Microsoft JhengHei', sans-serif">微軟正黑體</option>
+  <option value="'DFKai-SB', serif">標楷體</option>
+  <option value="'PingFang TC', sans-serif">蘋方</option>
+  <option value="'Arial', sans-serif">Arial</option>
+</select>
+
+      <button class="nav-btn" id="btn-font-down" style="padding:7px 10px;" title="縮小字體">A-</button>
+      <span id="font-size-label" style="font-size:11px;color:var(--text-dim);min-width:34px;text-align:center;white-space:nowrap;">100%</span>
+      <button class="nav-btn" id="btn-font-up" style="padding:7px 10px;" title="放大字體">A+</button>
+      <button class="nav-btn" id="btn-gap-down" style="padding:7px 10px;margin-left:4px;" title="縮小行距">≡-</button>
+      <span id="gap-label" style="font-size:11px;color:var(--text-dim);min-width:30px;text-align:center;white-space:nowrap;">行距</span>
+      <button class="nav-btn" id="btn-gap-up" style="padding:7px 10px;" title="放大行距">≡+</button>
+      <div class="bar-sep"></div>
       <button class="play-btn" id="btn-play" disabled title="播放／暫停">
         <svg id="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         <svg id="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
@@ -282,9 +324,6 @@
         <span class="time-label" id="time-dur">0:00</span>
       </div>
       <div class="bar-sep"></div>
-      <button class="nav-btn" id="btn-font-down" title="縮小字體">A-</button>
-      <span id="font-size-label" style="font-size:11px;color:var(--text-dim);min-width:36px;text-align:center;white-space:nowrap;">100%</span>
-      <button class="nav-btn" id="btn-font-up" title="放大字體">A+</button>
       <div class="bar-sep"></div>
       <button class="nav-btn" id="btn-prev" disabled>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
@@ -295,14 +334,27 @@
         下一頁
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
       </button>
+      <div id="section-btns" style="display:flex;gap:4px;flex-wrap:nowrap;"></div>
+    </div>
+
+    <!-- ROW 3: song + church + mode + fullscreen + help -->
+    <div class="source-row">
+      <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">🎵 歌名</span>
+      <input type="text" id="song-input" placeholder="輸入歌名" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:'Noto Sans TC',sans-serif;padding:4px 10px;outline:none;width:260px;transition:border-color 0.2s;" />
       <div class="bar-sep"></div>
-      <button class="nav-btn" id="btn-overlay" onclick="toggleOverlay()">⊡ 疊加模式</button>
+      <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">⛪ 教會名稱</span>
+      <input type="text" id="church-input" placeholder="輸入教會名稱" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:'Noto Sans TC',sans-serif;padding:4px 10px;outline:none;width:160px;transition:border-color 0.2s;" />
       <div class="bar-sep"></div>
-      <button class="nav-btn" id="btn-fullscreen">
+      <button class="nav-btn" id="btn-overlay" onclick="toggleOverlay()">⊟ 分割模式</button>
+      <button class="nav-btn" id="btn-expand" onclick="toggleExpand()" style="margin-left:4px;" title="歌詞展開">⬆ 展開歌詞</button>
+      <button class="nav-btn" id="btn-fullscreen" style="margin-left:4px;">
         <svg id="icon-fs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
         全螢幕
       </button>
+      <div class="bar-sep"></div>
+      <button class="bg-btn" id="btn-help2" onclick="document.getElementById('help-modal').style.display='flex'">？ 說明</button>
     </div>
+
   </div>
 </div>
 
@@ -310,6 +362,81 @@
 // placeholder — real definition below
 function syncOverlay() {}
 function toggleOverlay() {}
+
+// ── TEXT MODE ──
+function setTextMode(mode) {
+  document.getElementById('text-dark').classList.toggle('active', mode === 'dark');
+  document.getElementById('text-light').classList.toggle('active', mode === 'light');
+  document.getElementById('text-custom').classList.toggle('active', mode === 'custom');
+  const wrap = document.getElementById('custom-color-wrap');
+  wrap.style.display = mode === 'custom' ? 'flex' : 'none';
+
+  let mainColor, previewColor, labelColor, dividerColor, mainShadow, previewShadow;
+
+  if (mode === 'dark') {
+    mainColor = 'var(--text)'; previewColor = 'var(--text-dim)';
+    labelColor = 'rgba(255,255,255,0.75)'; dividerColor = 'rgba(255,255,255,0.1)';
+    mainShadow = 'none'; previewShadow = 'none';
+  } else if (mode === 'light') {
+    mainColor = '#111'; previewColor = '#888';
+    labelColor = 'rgba(0,0,0,0.7)'; dividerColor = 'transparent';
+    mainShadow = '0 1px 3px rgba(255,255,255,0.9), 0 0 12px rgba(255,255,255,0.8), 1px 1px 0 #fff, -1px -1px 0 #fff';
+    previewShadow = '0 1px 3px rgba(255,255,255,0.8)';
+  } else if (mode === 'custom') {
+    mainColor = document.getElementById('text-color-main').value;
+    previewColor = document.getElementById('text-color-preview').value;
+    labelColor = mainColor; dividerColor = 'transparent';
+    mainShadow = 'none'; previewShadow = 'none';
+  }
+
+  document.querySelectorAll('.slide-line:not(.preview)').forEach(el => { el.style.color = mainColor; el.style.textShadow = mainShadow; });
+  document.querySelectorAll('.slide-line.preview').forEach(el => { el.style.color = previewColor; el.style.textShadow = previewShadow; });
+  document.getElementById('slide-label').style.color = labelColor;
+  document.querySelectorAll('.slide-divider').forEach(el => el.style.background = dividerColor);
+  document.getElementById('church-name').style.color = mode === 'light' ? 'rgba(0,0,0,0.8)' : mainColor;
+  document.getElementById('church-name').style.textShadow = mode === 'light' ? '0 0 8px rgba(255,255,255,0.9)' : 'none';
+  document.getElementById('song-title-display').style.color = mode === 'light' ? 'rgba(0,0,0,0.6)' : mainColor;
+}
+
+document.getElementById('text-color-main').addEventListener('input', e => {
+  if (!document.getElementById('text-custom').classList.contains('active')) return;
+  const col = e.target.value;
+  document.querySelectorAll('.slide-line:not(.preview)').forEach(el => { el.style.color = col; el.style.textShadow = 'none'; });
+  document.getElementById('slide-label').style.color = col;
+  document.getElementById('church-name').style.color = col;
+  document.getElementById('song-title-display').style.color = col;
+});
+document.getElementById('text-color-preview').addEventListener('input', e => {
+  if (!document.getElementById('text-custom').classList.contains('active')) return;
+  document.querySelectorAll('.slide-line.preview').forEach(el => { el.style.color = e.target.value; el.style.textShadow = 'none'; });
+});
+
+
+function refreshTextMode() {
+    if (document.getElementById('text-dark').classList.contains('active')) {
+        setTextMode('dark');
+    } else if (document.getElementById('text-light').classList.contains('active')) {
+        setTextMode('light');
+    } else {
+        setTextMode('custom');
+    }
+}
+
+
+// ── BRIGHTNESS ──
+function applyBrightness(val) {
+  const overlay = document.getElementById('bg-overlay');
+  if (val > 0) {
+    overlay.style.background = `rgba(255,255,255,${val/100 * 0.7})`;
+  } else if (val < 0) {
+    overlay.style.background = `rgba(0,0,0,${Math.abs(val)/100 * 0.8})`;
+  } else {
+    overlay.style.background = 'transparent';
+  }
+}
+document.getElementById('bg-brightness').addEventListener('input', e => {
+  applyBrightness(parseInt(e.target.value));
+});
 
 // ── BACKGROUND ──
 const slideView = document.getElementById('slide-view');
@@ -320,110 +447,176 @@ let particleAnim = null;
 let particles = [];
 
 function setBg(mode) {
-  document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active'));
-  document.getElementById('bg-' + mode).classList.add('active');
+  if (particleAnim) {
+    cancelAnimationFrame(particleAnim);
+    particleAnim = null;
+  }
 
-  // stop particles
-  if (particleAnim) { cancelAnimationFrame(particleAnim); particleAnim = null; }
+  document.getElementById('bg-solid-layer').style.display = 'none';
+  document.getElementById('bg-img-el').style.display = 'none';
   canvas.style.display = 'none';
 
-  if (mode === 'solid') {
+  document.getElementById('bg-overlay').style.background = 'transparent';
+  document.getElementById('bg-brightness').style.display = 'none';
+  document.getElementById('particle-type').style.display = 'none';
+
+  document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById('bg-' + mode);
+  if (btn) btn.classList.add('active');
+
+  const lp = document.getElementById('lyrics-panel');
+
+  if (mode === 'default') {
+    lp.style.backgroundColor = '#0a0a12';
+    document.getElementById('bg-solid-layer').style.background = '#0a0a12';
+    document.getElementById('bg-solid-layer').style.display = 'block';
+
+    // 預設背景 = 白字模式
+    setTextMode('dark');
+  } else if (mode === 'solid') {
     const col = document.getElementById('bg-color').value;
-    slideView.style.backgroundImage = 'none';
-    slideView.style.backgroundColor = col;
-    slideEmpty.style.backgroundColor = col;
-    slideView.classList.remove('has-image');
+    lp.style.backgroundColor = col;
+    document.getElementById('bg-solid-layer').style.background = col;
+    document.getElementById('bg-solid-layer').style.display = 'block';
   } else if (mode === 'image') {
-    document.getElementById('bg-file').click();
+    lp.style.backgroundColor = 'transparent';
+    document.getElementById('bg-file').value = '';
+    setTimeout(() => document.getElementById('bg-file').click(), 10);
   } else if (mode === 'particle') {
-    slideView.style.backgroundImage = 'none';
-    slideView.style.backgroundColor = '#0a0a12';
-    slideEmpty.style.backgroundColor = '#0a0a12';
-    slideView.classList.remove('has-image');
+    lp.style.backgroundColor = '#0a0a12';
+    document.getElementById('bg-solid-layer').style.background = '#0a0a12';
+    document.getElementById('bg-solid-layer').style.display = 'block';
+    document.getElementById('particle-type').style.display = 'inline-block';
     canvas.style.display = 'block';
-    initParticles();
-    animParticles();
+    const pv = document.getElementById('panel-view');
+    canvas.width = pv.offsetWidth;
+    canvas.height = pv.offsetHeight;
+    startAnimation();
   }
+
 }
 
-// color picker
 document.getElementById('bg-color').addEventListener('input', e => {
   if (document.getElementById('bg-solid').classList.contains('active')) {
-    slideView.style.backgroundColor = e.target.value;
-    slideEmpty.style.backgroundColor = e.target.value;
+    document.getElementById('lyrics-panel').style.backgroundColor = e.target.value;
+    document.getElementById('bg-solid-layer').style.background = e.target.value;
   }
 });
 
-// image upload
 document.getElementById('bg-file').addEventListener('change', e => {
-  const file = e.target.files[0]; if (!file) return;
+  const file = e.target.files[0];
+  if (!file) {
+    setBg('default');
+    return;
+  }
   const url = URL.createObjectURL(file);
-  slideView.style.backgroundImage = `url('${url}')`;
-  slideView.style.backgroundSize = 'cover';
-  slideView.style.backgroundPosition = 'center';
-  slideView.style.backgroundColor = '';
-  slideEmpty.style.backgroundImage = `url('${url}')`;
-  slideEmpty.style.backgroundSize = 'cover';
-  slideEmpty.style.backgroundPosition = 'center';
-  slideView.classList.add('has-image');
+  // stop animation first
+  if (particleAnim) { cancelAnimationFrame(particleAnim); particleAnim = null; }
+  // hide all layers
+  document.getElementById('bg-solid-layer').style.display = 'none';
+  canvas.style.display = 'none';
+  document.getElementById('bg-overlay').style.background = 'transparent';
+  document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('bg-image').classList.add('active');
-  document.getElementById('bg-solid').classList.remove('active');
-  document.getElementById('bg-particle').classList.remove('active');
+  // show image
+  document.getElementById('lyrics-panel').style.backgroundColor = 'transparent';
+  const img = document.getElementById('bg-img-el');
+  img.src = url;
+  img.style.display = 'block';
+  document.getElementById('bg-brightness').style.display = 'inline-block';
+  document.getElementById('bg-brightness').value = 0;
+  document.getElementById('particle-type').style.display = 'none';
+  applyBrightness(0);
 });
 
-// particles
-function initParticles() {
-  particles = [];
-  const w = canvas.offsetWidth, h = canvas.offsetHeight;
-  canvas.width = w; canvas.height = h;
-  for (let i = 0; i < 80; i++) {
-    particles.push({
-      x: Math.random() * w, y: Math.random() * h,
-      r: Math.random() * 1.8 + 0.4,
-      dx: (Math.random() - 0.5) * 0.4,
-      dy: (Math.random() - 0.5) * 0.4,
-      o: Math.random() * 0.5 + 0.15
-    });
+// ── PARTICLE TYPE SWITCH ──
+document.getElementById('particle-type').addEventListener('change', () => {
+  if (particleAnim) { cancelAnimationFrame(particleAnim); particleAnim = null; }
+  const pv = document.getElementById('panel-view');
+  canvas.width = pv.offsetWidth;
+  canvas.height = pv.offsetHeight;
+  startAnimation();
+});
+
+let frameCount = 0;
+let meteors = [];
+let pulseR = 0, pulseGrow = true;
+
+function startAnimation() {
+  const type = document.getElementById('particle-type').value;
+  const w = canvas.width, h = canvas.height;
+  frameCount = 0; particles = []; meteors = [];
+
+  if (type === 'stars') {
+    for (let i = 0; i < 120; i++) particles.push({ x: Math.random()*w, y: Math.random()*h, r: Math.random()*1.5+0.3, o: Math.random(), do: (Math.random()*0.02+0.005)*(Math.random()<0.5?1:-1) });
+    animStars();
+  } else if (type === 'meteor') {
+    for (let i = 0; i < 80; i++) particles.push({ x: Math.random()*w, y: Math.random()*h, r: Math.random()*1+0.3, o: Math.random()*0.6+0.1 });
+    animMeteor();
+  } else if (type === 'pulse') {
+    pulseR = 0; pulseGrow = true;
+    animPulse();
   }
 }
 
-function animParticles() {
-  const w = canvas.width, h = canvas.height;
-  ctx.clearRect(0, 0, w, h);
+function animStars() {
+  const w=canvas.width, h=canvas.height;
+  ctx.clearRect(0,0,w,h);
   particles.forEach(p => {
-    p.x += p.dx; p.y += p.dy;
-    if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
-    if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(168,158,224,${p.o})`;
-    ctx.fill();
+    p.o += p.do;
+    if (p.o > 1 || p.o < 0.1) p.do *= -1;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,220,${p.o})`; ctx.fill();
   });
-  // draw connecting lines
-  for (let i = 0; i < particles.length; i++) {
-    for (let j = i + 1; j < particles.length; j++) {
-      const dx = particles[i].x - particles[j].x;
-      const dy = particles[i].y - particles[j].y;
-      const dist = Math.sqrt(dx*dx + dy*dy);
-      if (dist < 100) {
-        ctx.beginPath();
-        ctx.moveTo(particles[i].x, particles[i].y);
-        ctx.lineTo(particles[j].x, particles[j].y);
-        ctx.strokeStyle = `rgba(168,158,224,${0.12 * (1 - dist/100)})`;
-        ctx.lineWidth = 0.5;
-        ctx.stroke();
-      }
-    }
+  particleAnim = requestAnimationFrame(animStars);
+}
+
+function animMeteor() {
+  const w=canvas.width, h=canvas.height;
+  ctx.fillStyle='rgba(3,3,16,0.2)'; ctx.fillRect(0,0,w,h);
+  particles.forEach(p => {
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(255,255,220,${p.o})`; ctx.fill();
+  });
+  if (Math.random() < 0.03) meteors.push({ x: Math.random()*w, y: 0, vx: 4+Math.random()*3, vy: 4+Math.random()*3, o: 1 });
+  meteors.forEach(m => {
+    ctx.beginPath(); ctx.moveTo(m.x,m.y); ctx.lineTo(m.x-m.vx*8, m.y-m.vy*8);
+    const g = ctx.createLinearGradient(m.x,m.y,m.x-m.vx*8,m.y-m.vy*8);
+    g.addColorStop(0,`rgba(255,255,255,${m.o})`); g.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.strokeStyle=g; ctx.lineWidth=1.5; ctx.stroke();
+    m.x+=m.vx; m.y+=m.vy; m.o-=0.015;
+  });
+  meteors = meteors.filter(m => m.o > 0 && m.x < w+50);
+  particleAnim = requestAnimationFrame(animMeteor);
+}
+
+function animPulse() {
+  const w=canvas.width, h=canvas.height;
+  ctx.clearRect(0,0,w,h);
+  if (pulseGrow) { pulseR += 0.8; if (pulseR > Math.min(w,h)*0.6) pulseGrow=false; }
+  else { pulseR -= 0.8; if (pulseR < 20) pulseGrow=true; }
+  const maxR = Math.min(w,h)*0.6;
+  for (let i=3; i>=0; i--) {
+    const r = pulseR - i*40; if(r<=0) continue;
+    const alpha = (1-r/maxR)*0.3;
+    const g = ctx.createRadialGradient(w/2,h/2,0,w/2,h/2,r);
+    g.addColorStop(0,`rgba(124,111,224,${alpha*1.5})`);
+    g.addColorStop(1,'rgba(124,111,224,0)');
+    ctx.beginPath(); ctx.arc(w/2,h/2,r,0,Math.PI*2);
+    ctx.fillStyle=g; ctx.fill();
   }
-  particleAnim = requestAnimationFrame(animParticles);
+  particleAnim = requestAnimationFrame(animPulse);
 }
 
 window.addEventListener('resize', () => {
   if (document.getElementById('bg-particle').classList.contains('active')) {
-    canvas.width = canvas.offsetWidth;
-    canvas.height = canvas.offsetHeight;
-    initParticles();
+    if (particleAnim) { cancelAnimationFrame(particleAnim); particleAnim = null; }
+    const pv = document.getElementById('panel-view');
+    canvas.width = pv.offsetWidth;
+    canvas.height = pv.offsetHeight;
+    startAnimation();
   }
+
 });
 
 // ── FONT SIZE ──
@@ -472,6 +665,22 @@ document.addEventListener('fullscreenchange', () => {
   const ol = document.getElementById('overlay-lyrics');
   if (overlayOn) {
     ol.style.position = isFs ? 'fixed' : 'absolute';
+  }
+  // recalculate expand height after fullscreen change
+  if (expanded) {
+    setTimeout(() => {
+      const main = document.getElementById('main');
+      const bottomBar = document.querySelector('.bottom-bar');
+      const lp = document.getElementById('lyrics-panel');
+      lp.style.height = Math.max(main.clientHeight - bottomBar.offsetHeight, 100) + 'px';
+    }, 150);
+  }
+  // force background redraw for custom image
+  const sv = document.getElementById('slide-view');
+  if (sv.classList.contains('has-image')) {
+    const bg = sv.style.backgroundImage;
+    sv.style.backgroundImage = 'none';
+    setTimeout(() => { sv.style.backgroundImage = bg; }, 50);
   }
 });
 
@@ -632,11 +841,19 @@ function showSlide(idx){
 function loadLyrics(raw){
   slides=parseToSlides(raw);
   if(!slides.length){document.getElementById('slide-empty').style.display='flex';document.getElementById('slide-view').style.display='none';document.getElementById('slide-counter').textContent='—';document.getElementById('btn-prev').disabled=true;document.getElementById('btn-next').disabled=true;return;}
-  document.getElementById('slide-empty').style.display='none';document.getElementById('slide-view').style.display='flex';showSlide(0);
+  document.getElementById('slide-empty').style.display='none';document.getElementById('slide-view').style.display='flex';updateSectionJump();showSlide(0);
 }
 document.getElementById('btn-prev').addEventListener('click',()=>showSlide(current-2));
 document.getElementById('btn-next').addEventListener('click',()=>showSlide(current+2));
-document.addEventListener('keydown',e=>{if(e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT')return;if(e.key==='ArrowRight'||e.key==='ArrowDown')showSlide(current+2);if(e.key==='ArrowLeft'||e.key==='ArrowUp')showSlide(current-2);});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    const modal = document.getElementById('help-modal');
+    if (modal.style.display === 'flex') { modal.style.display = 'none'; return; }
+  }
+  if (e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT') return;
+  if (e.key==='ArrowRight'||e.key==='ArrowDown') showSlide(current+2);
+  if (e.key==='ArrowLeft'||e.key==='ArrowUp') showSlide(current-2);
+});
 document.getElementById('btn-apply').addEventListener('click',()=>{
   loadLyrics(document.getElementById('lyrics-editor').value);
   const pe = document.getElementById('panel-edit');
@@ -646,6 +863,74 @@ document.getElementById('btn-apply').addEventListener('click',()=>{
   document.getElementById('btab-edit').classList.remove('active');
 });
 document.getElementById('btn-clear').addEventListener('click',()=>{document.getElementById('lyrics-editor').value='';});
+
+function updateSectionJump() {
+  const container = document.getElementById('section-btns');
+  container.innerHTML = '';
+  let lastLabel = '';
+  slides.forEach((s, i) => {
+    if (s.label && s.label !== lastLabel) {
+      lastLabel = s.label;
+      const btn = document.createElement('button');
+      btn.className = 'nav-btn';
+      btn.style.padding = '7px 12px';
+      btn.style.fontSize = '12px';
+      btn.textContent = s.label;
+      btn.addEventListener('click', () => showSlide(i));
+      container.appendChild(btn);
+    }
+  });
+}
+
+// ── LINE SPACING ──
+let lineGap = 16;
+const slideStageEl = document.querySelector('.slide-stage');
+function applyGap() {
+  slideStageEl.style.gap = lineGap + 'px';
+  document.getElementById('gap-label').textContent = lineGap + 'px';
+}
+document.getElementById('btn-gap-up').addEventListener('click', () => {
+  lineGap = Math.min(lineGap + 8, 80);
+  applyGap();
+});
+document.getElementById('btn-gap-down').addEventListener('click', () => {
+  lineGap = Math.max(lineGap - 8, 0);
+  applyGap();
+});
+
+// ── EXPAND LYRICS ──
+let expanded = false;
+let preExpandHeight = '';
+
+function toggleExpand() {
+  if (overlayOn) return;
+  expanded = !expanded;
+  const btn = document.getElementById('btn-expand');
+  const lp = document.getElementById('lyrics-panel');
+  const main = document.getElementById('main');
+  const resizerEl = document.getElementById('resizer');
+  const vp = document.getElementById('video-panel');
+
+  if (expanded) {
+    preExpandHeight = lp.style.height || (lp.offsetHeight + 'px');
+    // collapse video panel, lyrics takes all space
+    vp.style.flex = '0 0 0px';
+    vp.style.overflow = 'hidden';
+    resizerEl.style.display = 'none';
+    const bottomBar = document.querySelector('.bottom-bar');
+    const maxH = main.clientHeight - bottomBar.offsetHeight;
+    lp.style.height = Math.max(maxH, 100) + 'px';
+    btn.textContent = '⬇ 收起影片';
+    btn.classList.add('active');
+  } else {
+    vp.style.flex = '';
+    vp.style.overflow = '';
+    resizerEl.style.display = '';
+    lp.style.height = preExpandHeight;
+    btn.textContent = '⬆ 展開歌詞';
+    btn.classList.remove('active');
+  }
+}
 
 // ── OVERLAY MODE ──
 let overlayOn = false;
@@ -660,7 +945,7 @@ function toggleOverlay() {
   const vp = document.getElementById('video-panel');
 
   btn.classList.toggle('active', overlayOn);
-  btn.textContent = overlayOn ? '⊟ 離開疊加' : '⊡ 疊加模式';
+  btn.textContent = overlayOn ? '⊡ 疊加模式' : '⊟ 分割模式';
 
   if (overlayOn) {
     savedLyricsHeight = lp.offsetHeight + 'px';
@@ -694,6 +979,28 @@ function syncOverlay() {
   document.getElementById('ov-line1').textContent = document.getElementById('line1').textContent;
   document.getElementById('ov-line2').textContent = document.getElementById('line2').textContent;
 };
+
+document.getElementById('font-family-select').addEventListener('change', function() {
+  const font = this.value;
+
+  document.querySelectorAll('.slide-line').forEach(el => {
+    el.style.fontFamily = font;
+  });
+
+  const church = document.getElementById('church-name');
+  const song = document.getElementById('song-title-display');
+
+  if (church) church.style.fontFamily = font;
+  if (song) song.style.fontFamily = font;
+
+  const ov1 = document.getElementById('ov-line1');
+  const ov2 = document.getElementById('ov-line2');
+
+  if (ov1) ov1.style.fontFamily = font;
+  if (ov2) ov2.style.fontFamily = font;
+});
+
+
 </script>
 </body>
 </html>
