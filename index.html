@@ -234,7 +234,7 @@
       <!-- OVERLAY LYRICS -->
       <div id="overlay-lyrics" style="display:none;position:absolute;inset:0;z-index:10;flex-direction:column;align-items:center;justify-content:flex-start;padding:20px 5% 0;pointer-events:none;">
         <div id="ov-label" style="font-size:clamp(13px,1.8vw,22px);letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.75);font-family:'Noto Sans TC',sans-serif;font-weight:500;align-self:flex-start;position:absolute;top:16px;left:24px;"></div>
-        <div style="display:inline-flex;flex-direction:column;align-items:center;background:rgba(0,0,0,0.5);padding:20px 48px 24px;border-radius:14px;max-width:92%;">
+        <div style="display:inline-flex;flex-direction:column;align-items:center;background:rgba(0,0,0,0.75);padding:10px 20px 12px;border-radius:0;max-width:96%;">
           <div style="font-family:'Noto Serif TC',serif;font-size:clamp(32px,5.5vw,72px);font-weight:700;line-height:1.5;color:#fff;text-align:center;white-space:pre-wrap;" id="ov-line1"></div>
           <div style="font-family:'Noto Serif TC',serif;font-size:clamp(32px,5.5vw,72px);font-weight:700;line-height:1.5;color:#fff;text-align:center;white-space:pre-wrap;" id="ov-line2"></div>
         </div>
@@ -246,7 +246,8 @@
   <div id="help-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center;">
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 32px;max-width:520px;width:90%;max-height:80vh;overflow-y:auto;position:relative;">
       <button onclick="document.getElementById('help-modal').style.display='none'" style="position:absolute;top:14px;right:16px;background:transparent;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;line-height:1;">✕</button>
-      <h2 style="font-family:'Noto Serif TC',serif;font-size:18px;font-weight:700;color:var(--accent2);margin-bottom:20px;">✦ 敬拜播放器 使用說明</h2>
+      <h2 style="font-family:'Noto Serif TC',serif;font-size:18px;font-weight:700;color:var(--accent2);margin-bottom:6px;">✦ 敬拜播放器 使用說明</h2>
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:16px;letter-spacing:0.04em;">V1 &nbsp;·&nbsp; 2026.06.10</div>
       <div style="display:flex;flex-direction:column;gap:16px;font-size:13px;line-height:1.8;color:var(--text-muted);">
         <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">✏️ 編輯歌詞</div>
           點「✏️ 編輯歌詞」開啟編輯區，每行一句歌詞。<br>
@@ -346,7 +347,7 @@
         <input type="color" id="text-color-preview" value="#888888" title="預告歌詞顏色" style="width:24px;height:24px;border:1px solid var(--border);border-radius:5px;background:none;cursor:pointer;padding:1px;" />
       </span>
       <div class="bar-sep"></div>
-      <button class="bg-btn" onclick="document.getElementById('help-modal').style.display='flex'">？ 說明</button>
+      <button onclick="document.getElementById('help-modal').style.display='flex'" style="padding:4px 10px;font-size:11px;color:#fff;cursor:pointer;border-radius:6px;border:1px solid var(--accent);background:rgba(124,111,224,0.25);transition:all 0.2s;user-select:none;white-space:nowrap;font-family:'Noto Sans TC',sans-serif;">？ 說明</button>
     </div>
 
     <!-- ROW 2: play + font + nav -->
@@ -650,6 +651,7 @@ let pulseR = 0, pulseGrow = true;
 
 
 function startAnimation() {
+  if (particleAnim) { cancelAnimationFrame(particleAnim); particleAnim = null; }
   const type = document.getElementById('particle-type').value;
   const w = canvas.width, h = canvas.height;
   frameCount = 0; particles = []; meteors = [];
@@ -720,7 +722,7 @@ function runUltimate(type){
    case 'particles': bg('#08152d','#000'); floatParticles(); break;
    case 'cloudflow': bg('#08152d','#000'); clouds(); break;
  }
- particleAnim=requestAnimationFrame(()=>runUltimate(type));
+ particleAnim=requestAnimationFrame(()=>{ if(canvas.style.display!=='none') runUltimate(type); else { particleAnim=null; } });
 }
 
 
@@ -1314,6 +1316,17 @@ function sendCastUpdate(type) {
   castChannel.postMessage({ type: type || 'update', state: getCastState() });
 }
 
+// Listen for cast window ready signal and re-send state
+function initCastChannel() {
+  if (castChannel) castChannel.close();
+  castChannel = new BroadcastChannel('worship_cast_v1');
+  castChannel.onmessage = e => {
+    if (e.data && e.data.type === 'ready') {
+      setTimeout(() => sendCastUpdate('init'), 100);
+    }
+  };
+}
+
 function toggleCastWindow() {
   const btn = document.getElementById('btn-cast');
   if (castWindow && !castWindow.closed) {
@@ -1337,7 +1350,7 @@ function toggleCastWindow() {
   castWindow.document.close();
 
   // Set up BroadcastChannel
-  castChannel = new BroadcastChannel('worship_cast_v1');
+  initCastChannel();
 
   // Send initial state after cast window loads
   setTimeout(() => sendCastUpdate('init'), 400);
@@ -1384,7 +1397,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a12;color:var(--
 /* ── 疊加模式（overlay）── */
 #overlay-view{position:fixed;inset:0;z-index:2;display:none;flex-direction:column;align-items:center;justify-content:flex-start;padding:20px 5% 0;}
 #overlay-view #ov-label{position:absolute;top:20px;left:36px;font-size:clamp(14px,2vw,26px);letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.75);font-family:'Noto Sans TC',sans-serif;font-weight:500;}
-#ov-box{display:inline-flex;flex-direction:column;align-items:center;background:rgba(0,0,0,0.5);padding:20px 48px 24px;border-radius:14px;max-width:92%;}
+#ov-box{display:inline-flex;flex-direction:column;align-items:center;background:rgba(0,0,0,0.75);padding:10px 20px 12px;border-radius:0;max-width:96%;}
 #ov-line1,#ov-line2{font-family:'Noto Serif TC',serif;font-size:clamp(36px,6vw,80px);font-weight:700;line-height:1.5;color:#fff;text-align:center;white-space:pre-wrap;}
 
 /* shared */
@@ -1613,7 +1626,11 @@ if(state.videoSrc && shouldShowVideo){
     document.getElementById('bg-solid-layer').style.background='#0a0a12';
     document.getElementById('bg-solid-layer').style.display='block';
     const preset=bg.preset||'forest';
-    if(!particleAnim||window._lastParticlePreset!==preset){window._lastParticlePreset=preset;startAnimation(preset);}
+    if(window._lastParticlePreset!==preset||!particleAnim){
+      if(particleAnim){cancelAnimationFrame(particleAnim);particleAnim=null;}
+      window._lastParticlePreset=preset;
+      startAnimation(preset);
+    }
   }
 }
 
@@ -1658,7 +1675,11 @@ try{
   player.addEventListener('play', ()=>{ try{sendCastUpdate('play');}catch(e){} });
   player.addEventListener('pause', ()=>{ try{sendCastUpdate('pause');}catch(e){} });
   player.addEventListener('seeked', ()=>{ try{sendCastUpdate('seek');}catch(e){} });
-  player.addEventListener('timeupdate', ()=>{ try{sendCastUpdate('time');}catch(e){} });
+  let _lastTimeSend = 0;
+  player.addEventListener('timeupdate', ()=>{
+    const now = Date.now();
+    if (now - _lastTimeSend > 2000) { _lastTimeSend = now; try{sendCastUpdate('time');}catch(e){} }
+  });
 }catch(e){}
 
 </script>
