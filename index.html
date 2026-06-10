@@ -31,7 +31,7 @@
   .slide-line { font-family: 'Noto Serif TC', serif; font-size: clamp(44px, 9vw, 100px); font-weight: 500; line-height: 1.4; color: var(--text); text-align: center; width: 100%; }
   .slide-line.preview { font-size: clamp(28px, 5vw, 60px); color: var(--text-dim); font-weight: 400; }
   .slide-line.empty { opacity: 0; pointer-events: none; }
-  .slide-divider { width: 40px; height: 1px; background: rgba(255,255,255,0.1); flex-shrink: 0; margin: 4px 0; }
+  .slide-divider { width: 40px; height: 1px; background: transparent; flex-shrink: 0; margin: 4px 0; }
   .bg-btn { padding: 4px 10px; font-size: 11px; color: var(--text-dim); cursor: pointer; border-radius: 6px; border: 1px solid var(--border); transition: all 0.2s; user-select: none; white-space: nowrap; font-family: 'Noto Sans TC', sans-serif; background: transparent; }
   .bg-btn.active { color: var(--accent2); border-color: var(--accent); background: rgba(124,111,224,0.1); }
   .bg-btn:hover:not(.active) { color: var(--text-muted); border-color: rgba(255,255,255,0.15); }
@@ -79,7 +79,22 @@
   .bottom-bar { flex: 0 0 auto; display: flex; flex-direction: column; background: var(--surface); border-top: 1px solid var(--border); }
 
   /* source row */
-  .source-row { display: flex; align-items: center; gap: 8px; padding: 7px 14px; border-bottom: 1px solid var(--border); }
+  .source-row { display: flex; align-items: center; gap: 6px; padding: 7px 10px; border-bottom: 1px solid var(--border); overflow: visible; min-width: 0; }
+
+  /* volume / brightness popup */
+  .vol-wrap, .bright-wrap { position: relative; display: flex; align-items: center; flex-shrink: 0; }
+  .vol-popup, .bright-popup {
+    display: none; position: fixed;
+    background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 10px 8px; flex-direction: column; align-items: center; gap: 6px;
+    z-index: 500; box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  }
+  .vol-popup.open, .bright-popup.open { display: flex; }
+  .vol-popup input[type=range], .bright-popup input[type=range] {
+    writing-mode: vertical-lr; direction: rtl;
+    width: 20px; height: 80px; cursor: pointer; accent-color: var(--accent);
+  }
+  .vol-pct, .bright-pct { font-size: 10px; color: var(--text-dim); }
   .src-btn {
     display: flex; align-items: center; gap: 5px; padding: 4px 10px;
     border: 1px solid var(--border); border-radius: 6px; background: transparent;
@@ -104,7 +119,7 @@
   .file-btn:hover { border-color: var(--accent); color: var(--accent2); }
   .file-btn svg { width: 13px; height: 13px; }
   #file-input { display: none; }
-  .filename { font-size: 11px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 130px; }
+  .filename { font-size: 11px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px; flex-shrink: 1; }
 
   /* control row */
   .control-row { display: flex; align-items: center; gap: 6px; padding: 8px 14px; }
@@ -181,7 +196,7 @@
     </div>
     <div class="panel" id="panel-edit">
       <div class="editor-wrap">
-        <div class="editor-hint">每行一句歌詞，每次顯示兩行。用 <code>[Verse]</code>、<code>[Chorus]</code>、<code>[Bridge]</code> 或中文 <code>主歌</code>、<code>副歌</code>、<code>橋段</code> 標記段落（不計入歌詞行）。輸入完成按「套用歌詞 →」。</div>
+        <div class="editor-hint">每行一句歌詞，每次顯示兩行。用 <code>[Verse]</code>、<code>[Chorus]</code> 等標記段落。<code>#</code> 單獨一行顯示歌名，<code>#文字</code> 顯示自訂標題頁（如 <code>#間奏</code>、<code>#詩篇63篇</code>）。輸入完成按「套用歌詞 →」。</div>
         <textarea id="lyrics-editor" placeholder="[Verse]
 主啊 祢是我心所渴慕
 我的靈渴想切慕祢主
@@ -216,11 +231,11 @@
       <video id="player" style="display:none;"></video>
       <iframe id="yt-frame" allowfullscreen allow="autoplay; encrypted-media"></iframe>
       <!-- OVERLAY LYRICS -->
-      <div id="overlay-lyrics" style="display:none;position:absolute;inset:0;z-index:10;flex-direction:column;align-items:center;justify-content:flex-start;padding:16px 5% 0;pointer-events:none;">
-        <div style="font-size:clamp(14px,2vw,24px);letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.85);font-family:'Noto Sans TC',sans-serif;font-weight:500;margin-bottom:6px;align-self:flex-start;" id="ov-label"></div>
-        <div style="display:inline-flex;flex-direction:column;align-items:center;background:#000;padding:14px 36px 18px;border-radius:12px;max-width:90%;">
-          <div style="font-family:'Noto Serif TC',serif;font-size:clamp(32px,5.5vw,72px);font-weight:700;line-height:1.5;color:#fff;text-align:center;white-space:nowrap;" id="ov-line1"></div>
-          <div style="font-family:'Noto Serif TC',serif;font-size:clamp(32px,5.5vw,72px);font-weight:700;line-height:1.5;color:#fff;text-align:center;white-space:nowrap;" id="ov-line2"></div>
+      <div id="overlay-lyrics" style="display:none;position:absolute;inset:0;z-index:10;flex-direction:column;align-items:center;justify-content:flex-start;padding:20px 5% 0;pointer-events:none;">
+        <div id="ov-label" style="font-size:clamp(13px,1.8vw,22px);letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.75);font-family:'Noto Sans TC',sans-serif;font-weight:500;align-self:flex-start;position:absolute;top:16px;left:24px;"></div>
+        <div style="display:inline-flex;flex-direction:column;align-items:center;background:rgba(0,0,0,0.5);padding:20px 48px 24px;border-radius:14px;max-width:92%;">
+          <div style="font-family:'Noto Serif TC',serif;font-size:clamp(32px,5.5vw,72px);font-weight:700;line-height:1.5;color:#fff;text-align:center;white-space:pre-wrap;" id="ov-line1"></div>
+          <div style="font-family:'Noto Serif TC',serif;font-size:clamp(32px,5.5vw,72px);font-weight:700;line-height:1.5;color:#fff;text-align:center;white-space:pre-wrap;" id="ov-line2"></div>
         </div>
       </div>
     </div>
@@ -232,20 +247,42 @@
       <button onclick="document.getElementById('help-modal').style.display='none'" style="position:absolute;top:14px;right:16px;background:transparent;border:none;color:var(--text-muted);font-size:20px;cursor:pointer;line-height:1;">✕</button>
       <h2 style="font-family:'Noto Serif TC',serif;font-size:18px;font-weight:700;color:var(--accent2);margin-bottom:20px;">✦ 敬拜播放器 使用說明</h2>
       <div style="display:flex;flex-direction:column;gap:16px;font-size:13px;line-height:1.8;color:var(--text-muted);">
-        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">📽️ 影片播放</div>點「選擇影片」選擇本機影片（mp4 等）。載入後按 ▶ 播放，拖拉進度條可跳轉。</div>
-        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🎵 編輯歌詞及頁面</div>
-          點「✏️ 編輯歌詞」輸入歌詞，每行一句。<br>
-          用 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">[Verse]</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">[Chorus]</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">[Bridge]</code> 或中文 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">主歌</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">副歌</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">橋段</code> 標記段落（不計入歌詞行）。輸入完成按「套用歌詞 →」。<br><br>
-          每次顯示兩行大字（當前），下方兩行小字（預告下一頁）。<br>
-          按「⏮ 上一頁 下一頁」或鍵盤 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">← →</code> 翻頁，每次跳兩行。<br>
-          有標記段落名稱的話，套用後會自動產生對應的快速跳轉按鈕，可直接點按跳到該段落。
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">✏️ 編輯歌詞</div>
+          點「✏️ 編輯歌詞」開啟編輯區，每行一句歌詞。<br>
+          用 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">[Verse]</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">[Chorus]</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">[Bridge]</code> 或中文 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">主歌</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">副歌</code> <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">橋段</code> 標記段落（不計入歌詞行）。<br>
+          輸入完成按「套用歌詞 →」，套用後自動產生段落快速跳轉按鈕。疊加模式下也可編輯。
         </div>
-        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🔡 字體與行距</div>按 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">A-</code> / <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">A+</code> 調整字體大小，按 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">≡-</code> / <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">≡+</code> 調整行距。</div>
-        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🎵 歌名 ⛪ 教會名稱</div>輸入後分別顯示在歌詞區右上角與右下角。</div>
-        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🎨 背景選項</div><b style="color:var(--text);">單色</b>：旁邊色盤選任意顏色。<br><b style="color:var(--text);">自訂背景</b>：選擇本機圖片作為背景。<br><b style="color:var(--text);">動態</b>：浮動星塵粒子動態背景。</div>
-        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">⊟ 分割／疊加模式</div><b style="color:var(--text);">分割模式</b>：歌詞與影片上下分割顯示，中間可拖拉調整比例。<br><b style="color:var(--text);">疊加模式</b>：影片全螢幕，歌詞黑框浮在影片上方。</div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;"># 標題頁</div>
+          單獨一行以 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">#</code> 開頭，插入標題頁：<br>
+          <b style="color:var(--text);">#</b> → 顯示歌名（需在下方輸入歌名）<br>
+          <b style="color:var(--text);">#詩篇63篇</b>、<b style="color:var(--text);">#間奏</b> → 顯示該段自訂文字<br>
+          標題頁翻頁跳 1 格，前後預告行自動空白。
+        </div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">◀ ▶ 翻頁</div>
+          每次顯示兩行大字（當前），下方兩行小字（預告下一頁）。<br>
+          按 <b style="color:var(--text);">‹</b> / <b style="color:var(--text);">›</b> 按鈕或鍵盤 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">← →</code> 翻頁。
+        </div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🔡 字體與行距</div>選擇字型後，按 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">A-</code> / <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">A+</code> 調整字體大小，按 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">≡-</code> / <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">≡+</code> 調整行距。</div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">📽️ 影片播放</div>
+          點「選擇影片」選擇本機影片（mp4 等）。載入後按 ▶ 播放，拖拉進度條跳轉。<br>
+          點 🔊 音量鈕可彈出垂直拉桿調整音量。
+        </div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🎨 背景選項</div>
+          <b style="color:var(--text);">預設</b>：深色底。<b style="color:var(--text);">單色</b>：色盤選任意顏色。<br>
+          <b style="color:var(--text);">自訂背景</b>：選本機圖片，載入後出現 ☀ 亮度鈕，點擊彈出拉桿調整明暗。<br>
+          <b style="color:var(--text);">動態</b>：粒子動態背景，下拉選擇風格。
+        </div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🎵 歌名 ⛪ 教會名稱</div>輸入後分別顯示在歌詞區右上角（歌名）與右下角（教會名稱）。</div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">⊟ 分割模式 ／ 疊加模式</div>
+          <b style="color:var(--text);">分割模式</b>（預設）：歌詞與影片上下分割，中間分隔線可拖拉調整比例。<br>
+          <b style="color:var(--text);">疊加模式</b>：影片全螢幕，歌詞黑框浮在影片上方，左上角有段落標示。
+        </div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">⬇ 收起影片 ／ ⬆ 展開影片</div>
+          「⬇ 收起影片」：隱藏影片區，歌詞佔滿全部空間。<br>
+          「⬆ 展開影片」：恢復顯示影片區。
+        </div>
         <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">⛶ 全螢幕</div>按「全螢幕」進入全螢幕，按 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">Esc</code> 離開。</div>
-        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">↕️ 調整比例</div>拖拉歌詞區與影片之間的分隔線，調整上下顯示比例。</div>
+        <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">📺 投放螢幕</div>點「📺 投放螢幕」開啟第二視窗，拖到外接螢幕投放歌詞，支援分割與疊加模式。</div>
         <div style="font-size:12px;color:var(--text-dim);border-top:1px solid var(--border);padding-top:12px;">按右上角 ✕ 或鍵盤 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">Esc</code> 關閉說明。</div>
       </div>
     </div>
@@ -274,7 +311,14 @@
       <input type="color" id="bg-color" value="#0a0a12" title="選擇顏色" style="width:26px;height:26px;border:1px solid var(--border);border-radius:5px;background:none;cursor:pointer;padding:2px;" />
       <button class="bg-btn" id="bg-image" onclick="setBg('image')">自訂背景</button>
       <input type="file" id="bg-file" accept="image/*" style="display:none;">
-      <input type="range" id="bg-brightness" min="-100" max="100" value="0" style="width:72px;cursor:pointer;accent-color:var(--accent);display:none;" title="亮度" />
+      <!-- 亮度（彈出式向下，圖片載入後才出現） -->
+      <div class="bright-wrap" id="bright-wrap" style="display:none;">
+        <button class="bg-btn" id="btn-bright" title="亮度">☀</button>
+        <div class="bright-popup" id="bright-popup">
+          <input type="range" id="bg-brightness" min="-100" max="100" value="0" title="亮度" />
+          <span class="bright-pct" id="bright-pct">0</span>
+        </div>
+      </div>
       <button class="bg-btn" id="bg-particle" onclick="setBg('particle')">動態</button>
       <select id="particle-type" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);font-size:11px;padding:3px 6px;">
 <option value="forest">🌲 星空森林 Pro</option>
@@ -300,6 +344,8 @@
         <span class="group-label">副</span>
         <input type="color" id="text-color-preview" value="#888888" title="預告歌詞顏色" style="width:24px;height:24px;border:1px solid var(--border);border-radius:5px;background:none;cursor:pointer;padding:1px;" />
       </span>
+      <div class="bar-sep"></div>
+      <button class="bg-btn" onclick="document.getElementById('help-modal').style.display='flex'">？ 說明</button>
     </div>
 
     <!-- ROW 2: play + font + nav -->
@@ -327,19 +373,31 @@
         <svg id="icon-play" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
         <svg id="icon-pause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
       </button>
-      <div class="progress-wrap">
+      <div class="progress-wrap" style="max-width:180px;">
         <span class="time-label" id="time-cur">0:00</span>
         <div class="progress-track" id="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
         <span class="time-label" id="time-dur">0:00</span>
       </div>
 <div class="bar-sep"></div>
-      <button class="nav-btn" id="btn-prev" disabled>
+      <!-- 音量（彈出式） -->
+      <div class="vol-wrap" id="vol-wrap">
+        <button class="nav-btn" id="btn-vol" style="padding:7px 10px;" title="音量">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;">
+            <path d="M11 5L6 9H2v6h4l5 4V5z"/>
+            <path d="M15.54 8.46a5 5 0 010 7.07" id="vol-wave"/>
+          </svg>
+        </button>
+        <div class="vol-popup" id="vol-popup">
+          <input type="range" id="volume-slider" min="0" max="100" value="100" title="音量" />
+          <span class="vol-pct" id="vol-pct">100%</span>
+        </div>
+      </div>
+      <div class="bar-sep"></div>
+      <button class="nav-btn" id="btn-prev" disabled style="padding:7px 11px;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
-        上一頁
       </button>
       <span class="slide-counter" id="slide-counter">—</span>
-      <button class="nav-btn" id="btn-next" disabled>
-        下一頁
+      <button class="nav-btn" id="btn-next" disabled style="padding:7px 11px;">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
       </button>
       <div id="section-btns" style="display:flex;gap:4px;flex-wrap:nowrap;"></div>
@@ -348,23 +406,21 @@
     <!-- ROW 3: song + church + mode + fullscreen + help -->
     <div class="source-row">
       <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">🎵 歌名</span>
-      <input type="text" id="song-input" placeholder="輸入歌名" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:'Noto Sans TC',sans-serif;padding:4px 10px;outline:none;width:260px;transition:border-color 0.2s;" />
+      <input type="text" id="song-input" placeholder="輸入歌名" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:'Noto Sans TC',sans-serif;padding:4px 10px;outline:none;width:130px;transition:border-color 0.2s;" />
       <div class="bar-sep"></div>
       <span style="font-size:11px;color:var(--text-dim);white-space:nowrap;">⛪ 教會名稱</span>
-      <input type="text" id="church-input" placeholder="輸入教會名稱" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:'Noto Sans TC',sans-serif;padding:4px 10px;outline:none;width:160px;transition:border-color 0.2s;" />
+      <input type="text" id="church-input" placeholder="輸入教會名稱" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;font-family:'Noto Sans TC',sans-serif;padding:4px 10px;outline:none;width:130px;transition:border-color 0.2s;" />
       <div class="bar-sep"></div>
-      <button class="nav-btn" id="btn-overlay" onclick="toggleOverlay()">⊟ 分割模式</button>
-      <button class="nav-btn" id="btn-expand" onclick="toggleExpand()" style="margin-left:4px;" title="歌詞展開">⬆ 展開歌詞</button>
-      <button class="nav-btn" id="btn-fullscreen" style="margin-left:4px;">
+      <button class="nav-btn" id="btn-overlay" onclick="toggleOverlay()" style="padding:7px 12px;">⊟ 分割模式</button>
+      <button class="nav-btn" id="btn-expand" onclick="toggleExpand()" style="margin-left:2px;padding:7px 12px;" title="歌詞展開">⬇ 收起影片</button>
+      <button class="nav-btn" id="btn-fullscreen" style="margin-left:2px;padding:7px 12px;">
         <svg id="icon-fs" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
         全螢幕
       </button>
-      <button class="nav-btn" id="btn-cast" style="margin-left:4px;" onclick="toggleCastWindow()">
+      <button class="nav-btn" id="btn-cast" style="margin-left:2px;padding:7px 12px;" onclick="toggleCastWindow()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="13" rx="2"/><path d="M2 12h4M2 16h2"/><circle cx="16" cy="13.5" r="2.5"/><path d="M16 11V7M2 3h20"/></svg>
         📺 投放螢幕
       </button>
-      <div class="bar-sep"></div>
-      <button class="bg-btn" id="btn-help2" onclick="document.getElementById('help-modal').style.display='flex'">？ 說明</button>
     </div>
 
   </div>
@@ -383,28 +439,27 @@ function setTextMode(mode) {
   const wrap = document.getElementById('custom-color-wrap');
   wrap.style.display = mode === 'custom' ? 'flex' : 'none';
 
-  let mainColor, previewColor, labelColor, dividerColor, mainShadow, previewShadow;
+  let mainColor, previewColor, labelColor, mainShadow, previewShadow;
 
   if (mode === 'dark') {
     mainColor = 'var(--text)'; previewColor = 'var(--text-dim)';
-    labelColor = 'rgba(255,255,255,0.75)'; dividerColor = 'transparent';
+    labelColor = 'rgba(255,255,255,0.75)';
     mainShadow = 'none'; previewShadow = 'none';
   } else if (mode === 'light') {
     mainColor = '#111'; previewColor = '#888';
-    labelColor = 'rgba(0,0,0,0.7)'; dividerColor = 'transparent';
+    labelColor = 'rgba(0,0,0,0.7)';
     mainShadow = '0 1px 3px rgba(255,255,255,0.9), 0 0 12px rgba(255,255,255,0.8), 1px 1px 0 #fff, -1px -1px 0 #fff';
     previewShadow = '0 1px 3px rgba(255,255,255,0.8)';
   } else if (mode === 'custom') {
     mainColor = document.getElementById('text-color-main').value;
     previewColor = document.getElementById('text-color-preview').value;
-    labelColor = mainColor; dividerColor = 'transparent';
+    labelColor = mainColor;
     mainShadow = 'none'; previewShadow = 'none';
   }
 
   document.querySelectorAll('.slide-line:not(.preview)').forEach(el => { el.style.color = mainColor; el.style.textShadow = mainShadow; });
   document.querySelectorAll('.slide-line.preview').forEach(el => { el.style.color = previewColor; el.style.textShadow = previewShadow; });
   document.getElementById('slide-label').style.color = labelColor;
-  document.querySelectorAll('.slide-divider').forEach(el => el.style.background = dividerColor);
   document.getElementById('church-name').style.color = mode === 'light' ? 'rgba(0,0,0,0.8)' : mainColor;
   document.getElementById('church-name').style.textShadow = mode === 'light' ? '0 0 8px rgba(255,255,255,0.9)' : 'none';
   document.getElementById('song-title-display').style.color = mode === 'light' ? 'rgba(0,0,0,0.6)' : mainColor;
@@ -447,8 +502,25 @@ function applyBrightness(val) {
     overlay.style.background = 'transparent';
   }
 }
+document.getElementById('btn-bright').addEventListener('click', e => {
+  e.stopPropagation();
+  const popup = document.getElementById('bright-popup');
+  popup.classList.toggle('open');
+  if (popup.classList.contains('open')) {
+    const r = e.currentTarget.getBoundingClientRect();
+    popup.style.left = (r.left + r.width/2 - 18) + 'px';
+    popup.style.top = (r.top - 110) + 'px';
+  }
+});
+document.addEventListener('click', e => {
+  if (!document.getElementById('bright-wrap').contains(e.target)) {
+    const bp = document.getElementById('bright-popup');
+    if (bp) bp.classList.remove('open');
+  }
+});
 document.getElementById('bg-brightness').addEventListener('input', e => {
   applyBrightness(parseInt(e.target.value));
+  document.getElementById('bright-pct').textContent = e.target.value;
   sendCastUpdate('update');
 });
 
@@ -471,7 +543,9 @@ function setBg(mode) {
   canvas.style.display = 'none';
 
   document.getElementById('bg-overlay').style.background = 'transparent';
-  document.getElementById('bg-brightness').style.display = 'none';
+  document.getElementById('bright-wrap').style.display = 'none';
+  const bp = document.getElementById('bright-popup');
+  if (bp) bp.classList.remove('open');
   document.getElementById('particle-type').style.display = 'none';
 
   document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active'));
@@ -539,8 +613,9 @@ document.getElementById('bg-file').addEventListener('change', e => {
   const img = document.getElementById('bg-img-el');
   img.src = url;
   img.style.display = 'block';
-  document.getElementById('bg-brightness').style.display = 'inline-block';
-  document.getElementById('bg-brightness').value = 0;
+  document.getElementById('bright-wrap').style.display = 'flex';
+  document.getElementById('bg-brightness').value = '0';
+  document.getElementById('bright-pct').textContent = '0';
   document.getElementById('particle-type').style.display = 'none';
   applyBrightness(0);
   setTimeout(() => sendCastUpdate('update'), 50);
@@ -825,6 +900,32 @@ document.addEventListener('mouseup', e => {
   document.body.style.cursor = '';
 });
 
+// ── VOLUME POPUP ──
+const volumeSlider = document.getElementById('volume-slider');
+const volPopup = document.getElementById('vol-popup');
+const volPct = document.getElementById('vol-pct');
+document.getElementById('btn-vol').addEventListener('click', e => {
+  e.stopPropagation();
+  const popup = volPopup;
+  popup.classList.toggle('open');
+  if (popup.classList.contains('open')) {
+    const r = e.currentTarget.getBoundingClientRect();
+    popup.style.left = (r.left + r.width/2 - 18) + 'px';
+    popup.style.top = (r.top - 110) + 'px';
+  }
+});
+document.addEventListener('click', e => {
+  if (!document.getElementById('vol-wrap').contains(e.target)) {
+    volPopup.classList.remove('open');
+  }
+});
+volumeSlider.addEventListener('input', e => {
+  const vol = parseInt(e.target.value) / 100;
+  player.volume = vol;
+  volPct.textContent = e.target.value + '%';
+  document.getElementById('vol-wave').style.display = vol === 0 ? 'none' : '';
+});
+
 document.getElementById('file-input').addEventListener('change', e => {
   const file = e.target.files[0]; if (!file) return;
   player.src = URL.createObjectURL(file);
@@ -842,6 +943,7 @@ document.getElementById('btab-edit').addEventListener('click', () => {
   const pe = document.getElementById('panel-edit');
   const pv = document.getElementById('panel-view');
   const btn = document.getElementById('btab-edit');
+  const lp = document.getElementById('lyrics-panel');
   const isEdit = pe.style.display === 'flex';
   if (isEdit) {
     pe.style.display = 'none'; pe.classList.remove('active');
@@ -851,7 +953,11 @@ document.getElementById('btab-edit').addEventListener('click', () => {
       document.getElementById('slide-empty').style.display = 'none';
       document.getElementById('slide-view').style.display = 'flex';
     }
+    // 疊加模式下編輯完畢，恢復隱藏歌詞區
+    if (overlayOn) lp.style.display = 'none';
   } else {
+    // 疊加模式下暫時顯示歌詞區以供編輯
+    if (overlayOn) lp.style.display = 'flex';
     pv.style.display = 'none'; pv.classList.remove('active');
     pe.style.display = 'flex'; pe.classList.add('active');
     btn.classList.add('active');
@@ -886,7 +992,14 @@ const sectionKeywords = ['verse','chorus','bridge','pre-chorus','outro','intro',
 function parseToSlides(raw){
   const r=[];let lb='';
   raw.split('\n').forEach(l=>{
-    const t=l.trim();if(!t)return;
+    const t=l.trim();
+    if(!t) return;
+    // # 或 # 文字 — 空白頁或自訂文字頁
+    if(t.startsWith('#')){ 
+      const custom = t.slice(1).trim();
+      r.push({label:lb, line:'', customText: custom || null});
+      return; 
+    }
     // bracket style: [Verse], [主歌]
     const m=t.match(/^\[(.+)\]$/);
     if(m){lb=labelMap[m[1]]||m[1];return;}
@@ -907,11 +1020,31 @@ function showSlide(idx){
   const l1=document.getElementById('line1'),l2=document.getElementById('line2');
   const l3=document.getElementById('line3'),l4=document.getElementById('line4');
   // current lines
-  l1.textContent=s0.line; l1.classList.remove('empty');
-  if(s1){l2.textContent=s1.line;l2.classList.remove('empty');}else{l2.textContent=' ';l2.classList.add('empty');}
-  // preview lines
-  if(s2){l3.textContent=s2.line;l3.classList.remove('empty');}else{l3.textContent=' ';l3.classList.add('empty');}
-  if(s3){l4.textContent=s3.line;l4.classList.remove('empty');}else{l4.textContent=' ';l4.classList.add('empty');}
+  const isBlankSlide = s0.line==='';
+  const songTitle = document.getElementById('song-input').value.trim();
+  const displayText = isBlankSlide ? (s0.customText || songTitle || '') : null;
+  if(isBlankSlide){
+    if(displayText){ l1.textContent=displayText; l1.classList.remove('empty'); }
+    else { l1.textContent=' '; l1.classList.add('empty'); }
+    l2.textContent=' '; l2.classList.add('empty');
+  } else {
+    l1.textContent=s0.line; l1.classList.toggle('empty', s0.line==='');
+    if(s1){l2.textContent=s1.line;l2.classList.toggle('empty', s1.line==='');}else{l2.textContent=' ';l2.classList.add('empty');}
+  }
+  // preview lines — hide if current is # page, or if next slide is a # page
+  if(isBlankSlide){
+    l3.textContent=' ';l3.classList.add('empty');
+    l4.textContent=' ';l4.classList.add('empty');
+  } else {
+    const nextIsBlank = s2 && s2.line==='';
+    if(nextIsBlank){
+      l3.textContent=' ';l3.classList.add('empty');
+      l4.textContent=' ';l4.classList.add('empty');
+    } else {
+      if(s2){l3.textContent=s2.line;l3.classList.toggle('empty', s2.line==='');}else{l3.textContent=' ';l3.classList.add('empty');}
+      if(s3){l4.textContent=s3.line;l4.classList.toggle('empty', s3.line==='');}else{l4.textContent=' ';l4.classList.add('empty');}
+    }
+  }
   document.getElementById('slide-counter').textContent=(current+1)+' / '+slides.length;
   document.getElementById('btn-prev').disabled=current===0;
   document.getElementById('btn-next').disabled=current+2>=slides.length;
@@ -921,18 +1054,30 @@ function showSlide(idx){
 function loadLyrics(raw){
   slides=parseToSlides(raw);
   if(!slides.length){document.getElementById('slide-empty').style.display='flex';document.getElementById('slide-view').style.display='none';document.getElementById('slide-counter').textContent='—';document.getElementById('btn-prev').disabled=true;document.getElementById('btn-next').disabled=true;return;}
-  document.getElementById('slide-empty').style.display='none';document.getElementById('slide-view').style.display='flex';updateSectionJump();showSlide(0);
+  document.getElementById('slide-empty').style.display='none';document.getElementById('slide-view').style.display='flex';slideHistory=[];updateSectionJump();showSlide(0);
 }
-document.getElementById('btn-prev').addEventListener('click',()=>showSlide(current-2));
-document.getElementById('btn-next').addEventListener('click',()=>showSlide(current+2));
+let slideHistory = [];
+function nextStep(dir){
+  if(dir > 0){
+    const step = (slides[current] && slides[current].line==='') ? 1 : 2;
+    slideHistory.push(current);
+    showSlide(current + step);
+  } else {
+    if(slideHistory.length > 0){
+      showSlide(slideHistory.pop());
+    }
+  }
+}
+document.getElementById('btn-prev').addEventListener('click',()=>nextStep(-1));
+document.getElementById('btn-next').addEventListener('click',()=>nextStep(1));
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
     const modal = document.getElementById('help-modal');
     if (modal.style.display === 'flex') { modal.style.display = 'none'; return; }
   }
   if (e.target.tagName==='TEXTAREA'||e.target.tagName==='INPUT') return;
-  if (e.key==='ArrowRight'||e.key==='ArrowDown') showSlide(current+2);
-  if (e.key==='ArrowLeft'||e.key==='ArrowUp') showSlide(current-2);
+  if (e.key==='ArrowRight'||e.key==='ArrowDown') nextStep(1);
+  if (e.key==='ArrowLeft'||e.key==='ArrowUp') nextStep(-1);
 });
 document.getElementById('btn-apply').addEventListener('click',()=>{
   loadLyrics(document.getElementById('lyrics-editor').value);
@@ -941,6 +1086,11 @@ document.getElementById('btn-apply').addEventListener('click',()=>{
   pe.style.display = 'none'; pe.classList.remove('active');
   pv.style.display = 'flex'; pv.classList.add('active');
   document.getElementById('btab-edit').classList.remove('active');
+  // 疊加模式下套用後恢復隱藏歌詞區
+  if (overlayOn) {
+    document.getElementById('lyrics-panel').style.display = 'none';
+    syncOverlay();
+  }
 });
 document.getElementById('btn-clear').addEventListener('click',()=>{document.getElementById('lyrics-editor').value='';});
 
@@ -1002,14 +1152,14 @@ function toggleExpand() {
     const bottomBar = document.querySelector('.bottom-bar');
     const maxH = main.clientHeight - bottomBar.offsetHeight;
     lp.style.height = Math.max(maxH, 100) + 'px';
-    btn.textContent = '⬇ 收起影片';
+    btn.textContent = '⬆ 展開影片';
     btn.classList.add('active');
   } else {
     vp.style.flex = '';
     vp.style.overflow = '';
     resizerEl.style.display = '';
     lp.style.height = preExpandHeight;
-    btn.textContent = '⬆ 展開歌詞';
+    btn.textContent = '⬇ 收起影片';
     btn.classList.remove('active');
   }
 }
@@ -1028,6 +1178,7 @@ function toggleOverlay() {
 
   btn.classList.toggle('active', overlayOn);
   btn.textContent = overlayOn ? '⊡ 疊加模式' : '⊟ 分割模式';
+  document.getElementById('btn-expand').style.display = overlayOn ? 'none' : '';
 
   if (overlayOn) {
     savedLyricsHeight = lp.offsetHeight + 'px';
@@ -1059,9 +1210,14 @@ function toggleOverlay() {
 
 function syncOverlay() {
   if (!overlayOn) return;
+  const line1 = document.getElementById('line1').textContent;
+  const line2 = document.getElementById('line2').textContent;
   document.getElementById('ov-label').textContent = document.getElementById('slide-label').textContent;
-  document.getElementById('ov-line1').textContent = document.getElementById('line1').textContent;
-  document.getElementById('ov-line2').textContent = document.getElementById('line2').textContent;
+  document.getElementById('ov-line1').textContent = line1;
+  const ovLine2 = document.getElementById('ov-line2');
+  const isEmpty2 = !line2 || document.getElementById('line2').classList.contains('empty');
+  ovLine2.textContent = isEmpty2 ? '' : line2;
+  ovLine2.style.display = isEmpty2 ? 'none' : '';
 };
 
 // ── CAST / PROJECTION WINDOW ──
@@ -1201,15 +1357,15 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a12;color:var(--
 
 /* ── 疊加模式（overlay）── */
 #overlay-view{position:fixed;inset:0;z-index:2;display:none;flex-direction:column;align-items:center;justify-content:flex-start;padding:20px 5% 0;}
-#overlay-view #ov-label{font-size:clamp(14px,2vw,24px);letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.85);font-family:'Noto Sans TC',sans-serif;font-weight:500;margin-bottom:8px;align-self:flex-start;}
-#ov-box{display:inline-flex;flex-direction:column;align-items:center;background:#000;padding:16px 48px 22px;border-radius:14px;max-width:90%;}
+#overlay-view #ov-label{position:absolute;top:20px;left:36px;font-size:clamp(14px,2vw,26px);letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,255,255,0.75);font-family:'Noto Sans TC',sans-serif;font-weight:500;}
+#ov-box{display:inline-flex;flex-direction:column;align-items:center;background:rgba(0,0,0,0.5);padding:20px 48px 24px;border-radius:14px;max-width:92%;}
 #ov-line1,#ov-line2{font-family:'Noto Serif TC',serif;font-size:clamp(36px,6vw,80px);font-weight:700;line-height:1.5;color:#fff;text-align:center;white-space:pre-wrap;}
 
 /* shared */
 .slide-line{font-family:'Noto Serif TC',serif;font-size:clamp(48px,9vw,110px);font-weight:500;line-height:1.4;color:var(--text);text-align:center;width:100%;}
 .slide-line.preview{font-size:clamp(30px,5vw,64px);color:var(--text-dim);font-weight:400;}
 .slide-line.empty{opacity:0;}
-.slide-divider{width:40px;height:1px;background:rgba(255,255,255,0.1);margin:6px 0;}
+.slide-divider{width:40px;height:1px;background:transparent;margin:6px 0;}
 #empty-msg{display:flex;flex-direction:column;align-items:center;gap:12px;color:rgba(255,255,255,0.2);}
 #empty-msg span{font-size:56px;}
 #empty-msg p{font-size:16px;letter-spacing:0.06em;}
@@ -1313,7 +1469,10 @@ function applyState(state){
     overlayView.style.display='flex';
     document.getElementById('ov-label').textContent=state.label||'';
     document.getElementById('ov-line1').textContent=state.line1||'';
-    document.getElementById('ov-line2').textContent=state.line2||'';
+    const ovl2=document.getElementById('ov-line2');
+    const empty2=!state.line2||state.line2.trim()==='';
+    ovl2.textContent=empty2?'':state.line2;
+    ovl2.style.display=empty2?'none':'';
   }else{
     normalView.style.display='flex';
     overlayView.style.display='none';
@@ -1336,7 +1495,7 @@ if(state.videoSrc && shouldShowVideo){
   castVideo.style.display='none';
 }
 
-const hasSlides=state.hasSlides;
+  const hasSlides=state.hasSlides;
 
   // ── 全螢幕歌詞顯示 ──
   document.getElementById('empty-msg').style.display=hasSlides?'none':'flex';
@@ -1360,6 +1519,11 @@ const hasSlides=state.hasSlides;
     document.querySelectorAll('.slide-line').forEach(el=>el.style.fontFamily=state.fontFamily);
     document.getElementById('song-title-display').style.fontFamily=state.fontFamily;
     document.getElementById('church-name').style.fontFamily=state.fontFamily;
+    document.getElementById('slide-label').style.fontFamily=state.fontFamily;
+    const ov1=document.getElementById('ov-line1');
+    const ov2=document.getElementById('ov-line2');
+    if(ov1) ov1.style.fontFamily=state.fontFamily;
+    if(ov2) ov2.style.fontFamily=state.fontFamily;
   }
   // Font size scale
   if(state.fontSizeLabel){
@@ -1439,9 +1603,11 @@ document.getElementById('font-family-select').addEventListener('change', functio
 
   const church = document.getElementById('church-name');
   const song = document.getElementById('song-title-display');
+  const label = document.getElementById('slide-label');
 
   if (church) church.style.fontFamily = font;
   if (song) song.style.fontFamily = font;
+  if (label) label.style.fontFamily = font;
 
   const ov1 = document.getElementById('ov-line1');
   const ov2 = document.getElementById('ov-line2');
@@ -1452,14 +1618,6 @@ document.getElementById('font-family-select').addEventListener('change', functio
   sendCastUpdate('update');
 });
 
-
-</script>
-</body>
-</html>
-
-
-<script>
-
 try{
   player.addEventListener('play', ()=>{ try{sendCastUpdate('play');}catch(e){} });
   player.addEventListener('pause', ()=>{ try{sendCastUpdate('pause');}catch(e){} });
@@ -1468,3 +1626,5 @@ try{
 }catch(e){}
 
 </script>
+</body>
+</html>
