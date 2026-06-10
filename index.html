@@ -197,7 +197,7 @@
     </div>
     <div class="panel" id="panel-edit">
       <div class="editor-wrap">
-        <div class="editor-hint">每行一句歌詞，每次顯示兩行。用 <code>[Verse]</code>、<code>[Chorus]</code> 等標記段落。<code>#</code> 單獨一行顯示歌名，<code>#文字</code> 顯示自訂標題頁（如 <code>#間奏</code>、<code>#詩篇63篇</code>）。輸入完成按「套用歌詞 →」。</div>
+        <div class="editor-hint">每行一句歌詞，每次顯示兩行。用 <code>[Verse]</code>、<code>[Chorus]</code>、<code>[Bridge]</code> 或中文 <code>主歌</code>、<code>副歌</code>、<code>橋段</code> 標記段落，支援 <code>Verse1</code>、<code>Verse2</code>、<code>Tag</code> 等。單獨 <code>#</code> 顯示歌名，<code>#文字</code> 顯示自訂標題頁。輸入完成按「套用歌詞 →」。</div>
         <textarea id="lyrics-editor" placeholder="[Verse]
 主啊 祢是我心所渴慕
 我的靈渴想切慕祢主
@@ -997,10 +997,13 @@ const labelMap={
   verse:'Verse', chorus:'Chorus', bridge:'Bridge', pre:'Pre-Chorus',
   outro:'Outro', intro:'Intro',
   主歌:'主歌', 副歌:'副歌', 橋段:'橋段', 前奏:'前奏', 尾奏:'尾奏',
-  interlude:'Interlude', refrain:'Refrain', tag:'Tag'
+  interlude:'Interlude', refrain:'Refrain', tag:'Tag',
+  prechorus:'Pre-Chorus', precchorus:'Pre-Chorus'
 };
 // section keywords to detect and skip as labels (not lyrics)
-const sectionKeywords = ['verse','chorus','bridge','pre-chorus','outro','intro','interlude','refrain','tag','主歌','副歌','橋段','前奏','尾奏'];
+const sectionKeywords = ['verse','chorus','bridge','pre-chorus','prechorus','outro','intro','interlude','refrain','tag','主歌','副歌','橋段','前奏','尾奏'];
+// regex: matches Verse1, Verse2, Chorus2, Tag1, 主歌1, 主歌2, 主歌一, 主歌二 etc.
+const sectionRegex = /^(verse|chorus|bridge|pre-?chorus|outro|intro|interlude|refrain|tag|主歌|副歌|橋段|前奏|尾奏)\s*[\d一二三四五六七八九十]*\s*:?\s*$/i;
 
 function parseToSlides(raw){
   const r=[];let lb='';
@@ -1013,13 +1016,16 @@ function parseToSlides(raw){
       r.push({label:lb, line:'', customText: custom || null});
       return; 
     }
-    // bracket style: [Verse], [主歌]
+    // bracket style: [Verse], [Verse1], [主歌2]
     const m=t.match(/^\[(.+)\]$/);
-    if(m){lb=labelMap[m[1]]||m[1];return;}
-    // plain keyword line (e.g. "Verse", "副歌", "Chorus:")
-    const lower=t.toLowerCase().replace(/[:\s]/g,'');
-    if(sectionKeywords.includes(lower)||sectionKeywords.includes(t.replace(/[:\s]/g,''))){
-      lb=labelMap[t.replace(/[:\s]/g,'')]||t;return;
+    if(m){lb=labelMap[m[1].toLowerCase().replace(/[:\s\d]/g,'')] || m[1];return;}
+    // plain keyword line — regex match (Verse1:, Chorus2, Tag, 主歌1 etc.)
+    if(sectionRegex.test(t)){
+      // 保留原始文字作為標籤（如 Verse1、Chorus2）
+      lb = t.replace(/:+\s*$/, '').trim();
+      // 美化：首字大寫
+      lb = lb.charAt(0).toUpperCase() + lb.slice(1);
+      return;
     }
     r.push({label:lb,line:t});
   });
