@@ -174,6 +174,7 @@
       <!-- bg layers: each independently shown/hidden -->
       <div id="bg-solid-layer" style="position:absolute;inset:0;z-index:0;pointer-events:none;background:#0a0a12;"></div>
       <img id="bg-img-el" style="position:absolute;inset:0;width:100%;height:100%;object-fit:fill;z-index:0;pointer-events:none;display:none;">
+      <video id="bg-video-el" muted loop playsinline style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;pointer-events:none;display:none;"></video>
       <canvas id="particle-canvas" style="position:absolute;inset:0;width:100%;height:100%;z-index:0;pointer-events:none;display:none;"></canvas>
       <div class="bg-overlay" id="bg-overlay" style="position:absolute;inset:0;z-index:1;pointer-events:none;"></div>
       <div class="slide-empty" id="slide-empty" style="position:relative;z-index:3;">
@@ -264,12 +265,12 @@
         </div>
         <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🔡 字體與行距</div>選擇字型後，按 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">A-</code> / <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">A+</code> 調整字體大小，按 <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">≡-</code> / <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;color:var(--accent2);">≡+</code> 調整行距。</div>
         <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">📽️ 影片播放</div>
-          點「選擇影片」選擇本機影片（mp4 等）。載入後按 ▶ 播放，拖拉進度條跳轉。<br>
+          點「選擇影片」選擇本機影片（mp4 等）或音訊（mp3、m4a 等）。載入後按 ▶ 播放，拖拉進度條跳轉。<br>
           點 🔊 音量鈕可彈出垂直拉桿調整音量。
         </div>
         <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🎨 背景選項</div>
           <b style="color:var(--text);">預設</b>：深色底。<b style="color:var(--text);">單色</b>：色盤選任意顏色。<br>
-          <b style="color:var(--text);">自訂背景</b>：選本機圖片，載入後出現 ☀ 亮度鈕，點擊彈出拉桿調整明暗。<br>
+          <b style="color:var(--text);">自訂背景</b>：選本機圖片（jpg、png、gif、webp 等）或影片（mp4、webm 等）作為背景，影片背景會自動靜音循環播放。載入後出現 ☀ 亮度鈕，點擊彈出拉桿調整明暗。<br>
           <b style="color:var(--text);">動態</b>：粒子動態背景，下拉選擇風格。
         </div>
         <div><div style="font-weight:500;color:var(--text);margin-bottom:4px;">🎵 歌名 ⛪ 教會名稱</div>輸入後分別顯示在歌詞區右上角（歌名）與右下角（教會名稱）。</div>
@@ -301,7 +302,7 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M12 12V4M8 8l4-4 4 4"/></svg>
         選擇影片
       </label>
-      <input type="file" id="file-input" accept="video/*">
+      <input type="file" id="file-input" accept="video/*,audio/*">
       <span class="filename" id="filename">未選擇</span>
       <div class="bar-sep"></div>
       <!-- 背景群組 -->
@@ -310,7 +311,7 @@
       <button class="bg-btn" id="bg-solid" onclick="setBg('solid')">單色</button>
       <input type="color" id="bg-color" value="#0a0a12" title="選擇顏色" style="width:26px;height:26px;border:1px solid var(--border);border-radius:5px;background:none;cursor:pointer;padding:2px;" />
       <button class="bg-btn" id="bg-image" onclick="setBg('image')">自訂背景</button>
-      <input type="file" id="bg-file" accept="image/*" style="display:none;">
+      <input type="file" id="bg-file" accept="image/*,video/*" style="display:none;">
       <!-- 亮度（彈出式向下，圖片載入後才出現） -->
       <div class="bright-wrap" id="bright-wrap" style="display:none;">
         <button class="bg-btn" id="btn-bright" title="亮度">☀</button>
@@ -540,6 +541,8 @@ function setBg(mode) {
 
   document.getElementById('bg-solid-layer').style.display = 'none';
   document.getElementById('bg-img-el').style.display = 'none';
+  const bgVid = document.getElementById('bg-video-el');
+  bgVid.pause(); bgVid.src = ''; bgVid.style.display = 'none';
   canvas.style.display = 'none';
 
   document.getElementById('bg-overlay').style.background = 'transparent';
@@ -595,29 +598,39 @@ document.getElementById('bg-color').addEventListener('input', e => {
 
 document.getElementById('bg-file').addEventListener('change', e => {
   const file = e.target.files[0];
-  if (!file) {
-    setBg('default');
-    return;
-  }
+  if (!file) { setBg('default'); return; }
   const url = URL.createObjectURL(file);
-  // stop animation first
   if (particleAnim) { cancelAnimationFrame(particleAnim); particleAnim = null; }
-  // hide all layers
   document.getElementById('bg-solid-layer').style.display = 'none';
   canvas.style.display = 'none';
   document.getElementById('bg-overlay').style.background = 'transparent';
   document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('bg-image').classList.add('active');
-  // show image
   document.getElementById('lyrics-panel').style.backgroundColor = 'transparent';
-  const img = document.getElementById('bg-img-el');
-  img.src = url;
-  img.style.display = 'block';
-  document.getElementById('bright-wrap').style.display = 'flex';
-  document.getElementById('bg-brightness').value = '0';
-  document.getElementById('bright-pct').textContent = '0';
   document.getElementById('particle-type').style.display = 'none';
   applyBrightness(0);
+
+  if (file.type.startsWith('video/')) {
+    // 影片背景
+    document.getElementById('bg-img-el').style.display = 'none';
+    const vid = document.getElementById('bg-video-el');
+    vid.src = url;
+    vid.style.display = 'block';
+    vid.play();
+    document.getElementById('bright-wrap').style.display = 'flex';
+    document.getElementById('bg-brightness').value = '0';
+    document.getElementById('bright-pct').textContent = '0';
+  } else {
+    // 圖片背景
+    const bgVid = document.getElementById('bg-video-el');
+    bgVid.pause(); bgVid.src = ''; bgVid.style.display = 'none';
+    const img = document.getElementById('bg-img-el');
+    img.src = url;
+    img.style.display = 'block';
+    document.getElementById('bright-wrap').style.display = 'flex';
+    document.getElementById('bg-brightness').value = '0';
+    document.getElementById('bright-pct').textContent = '0';
+  }
   setTimeout(() => sendCastUpdate('update'), 50);
 });
 
@@ -1244,18 +1257,24 @@ function getCastState() {
   } else if (document.getElementById('bg-particle').classList.contains('active')) {
     bgState = { type: 'particle', preset: document.getElementById('particle-type').value };
   } else if (document.getElementById('bg-image').classList.contains('active')) {
-    const img = document.getElementById('bg-img-el');
-    // Convert blob URL to base64 so it works cross-window
-    let imgData = '';
-    try {
-      const offscreen = document.createElement('canvas');
-      offscreen.width = img.naturalWidth || img.width;
-      offscreen.height = img.naturalHeight || img.height;
-      const octx = offscreen.getContext('2d');
-      octx.drawImage(img, 0, 0);
-      imgData = offscreen.toDataURL('image/jpeg', 0.85);
-    } catch(e) { imgData = img.src; }
-    bgState = { type: 'image', src: imgData, brightness: parseInt(document.getElementById('bg-brightness').value) || 0 };
+    const vid = document.getElementById('bg-video-el');
+    if (vid.style.display !== 'none' && vid.src) {
+      // 影片背景：傳 blob URL（同源視窗可直接用）
+      bgState = { type: 'bgvideo', src: vid.src, brightness: parseInt(document.getElementById('bg-brightness').value) || 0 };
+    } else {
+      const img = document.getElementById('bg-img-el');
+      // Convert blob URL to base64 so it works cross-window
+      let imgData = '';
+      try {
+        const offscreen = document.createElement('canvas');
+        offscreen.width = img.naturalWidth || img.width;
+        offscreen.height = img.naturalHeight || img.height;
+        const octx = offscreen.getContext('2d');
+        octx.drawImage(img, 0, 0);
+        imgData = offscreen.toDataURL('image/jpeg', 0.85);
+      } catch(e) { imgData = img.src; }
+      bgState = { type: 'image', src: imgData, brightness: parseInt(document.getElementById('bg-brightness').value) || 0 };
+    }
   }
 
   // Text color mode
@@ -1345,6 +1364,7 @@ ${fonts}
 html,body{width:100%;height:100%;overflow:hidden;background:#0a0a12;color:var(--text);font-family:'Noto Sans TC',sans-serif;}
 #bg-solid-layer{position:fixed;inset:0;z-index:0;background:#0a0a12;}
 #bg-img-el{position:fixed;inset:0;width:100%;height:100%;object-fit:fill;z-index:0;display:none;}
+#bg-video-el{position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;display:none;}
 #particle-canvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:none;}
 #bg-overlay{position:fixed;inset:0;z-index:1;pointer-events:none;}
 
@@ -1376,6 +1396,7 @@ html,body{width:100%;height:100%;overflow:hidden;background:#0a0a12;color:var(--
 <body>
 <div id="bg-solid-layer"></div>
 <img id="bg-img-el">
+<video id="bg-video-el" muted loop playsinline></video>
 <canvas id="particle-canvas"></canvas>
 <div id="bg-overlay"></div>
 <video id="cast-video" autoplay muted playsinline style="position:fixed;inset:0;width:100%;height:100%;object-fit:contain;background:#000;z-index:1;display:none;"></video>
@@ -1555,6 +1576,8 @@ if(state.videoSrc && shouldShowVideo){
   if(particleAnim&&bg.type!=='particle'){cancelAnimationFrame(particleAnim);particleAnim=null;window._lastParticlePreset=null;canvas.style.display='none';}
   document.getElementById('bg-solid-layer').style.display='none';
   document.getElementById('bg-img-el').style.display='none';
+  const bgVidEl=document.getElementById('bg-video-el');
+  bgVidEl.style.display='none';
   document.getElementById('bg-overlay').style.background='transparent';
   if(bg.type==='default'){
     document.body.style.background='#0a0a12';
@@ -1569,6 +1592,13 @@ if(state.videoSrc && shouldShowVideo){
     const img=document.getElementById('bg-img-el');
     if(img.src!==bg.src)img.src=bg.src;
     img.style.display='block';
+    const bv=bg.brightness||0;
+    if(bv>0)document.getElementById('bg-overlay').style.background='rgba(255,255,255,'+(bv/100*0.7)+')';
+    else if(bv<0)document.getElementById('bg-overlay').style.background='rgba(0,0,0,'+(Math.abs(bv)/100*0.8)+')';
+  }else if(bg.type==='bgvideo'&&bg.src){
+    document.body.style.background='transparent';
+    if(bgVidEl.src!==bg.src){ bgVidEl.src=bg.src; bgVidEl.play(); }
+    bgVidEl.style.display='block';
     const bv=bg.brightness||0;
     if(bv>0)document.getElementById('bg-overlay').style.background='rgba(255,255,255,'+(bv/100*0.7)+')';
     else if(bv<0)document.getElementById('bg-overlay').style.background='rgba(0,0,0,'+(Math.abs(bv)/100*0.8)+')';
